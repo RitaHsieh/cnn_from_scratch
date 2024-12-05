@@ -17,6 +17,7 @@ using namespace std;
 /*
  * Train a neural network on the MNIST data set and evaluate its performance
  */
+BATCH_SIZE = 32;
 
 int main(int argc, char **argv) {
     if (argc < 2) {
@@ -27,7 +28,7 @@ int main(int argc, char **argv) {
 
     printf("Loading training set... ");
     fflush(stdout);
-    MNISTDataLoader train_loader(data_path + "/train-images-idx3-ubyte", data_path + "/train-labels-idx1-ubyte", 32);
+    MNISTDataLoader train_loader(data_path + "/train-images-idx3-ubyte", data_path + "/train-labels-idx1-ubyte", BATCH_SIZE);
     printf("Loaded.\n");
 
     int seed = 0;
@@ -58,7 +59,7 @@ int main(int argc, char **argv) {
 
     printf("Loading testing set... ");
     fflush(stdout);
-    MNISTDataLoader test_loader(data_path + "/t10k-images-idx3-ubyte", data_path + "/t10k-labels-idx1-ubyte", 32);
+    MNISTDataLoader test_loader(data_path + "/t10k-images-idx3-ubyte", data_path + "/t10k-labels-idx1-ubyte", BATCH_SIZE);
     printf("Loaded.\n");
 
     model.eval();

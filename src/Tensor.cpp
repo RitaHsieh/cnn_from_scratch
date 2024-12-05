@@ -387,6 +387,7 @@ void Tensor<T>::dropout(std::default_random_engine generator, std::uniform_real_
     }
 }
 
+// add __global__ ooxx convolve2dCUDA() method
 template<typename T>
 Tensor<T> Tensor<T>::convolve2d(Tensor<T> kernels, int stride, int padding, Tensor<T> bias) {
     assert(kernels.dims[1] == dims[1]);

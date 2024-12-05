@@ -14,11 +14,13 @@ NetworkModel::NetworkModel(std::vector<Module *> &modules, OutputLayer *output_l
     output_layer_ = output_layer;
 }
 
+// TODO: allocate global memory
 double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
     // Forward
     Tensor<double> output = forward(x);
 
     //Backprop
+    // TODO: call backpropCUDA(y) instead
     pair<double, Tensor<double>> loss_and_cost_gradient = output_layer_->backprop(y);
     Tensor<double> chain_gradient = loss_and_cost_gradient.second;
     for (int i = (int) modules_.size() - 1; i >= 0; --i) {
@@ -30,6 +32,8 @@ double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
     return loss_and_cost_gradient.first;
 }
 
+// TODO: create CUDA version of forward that call for a loop of forwardCUDA(x)
+// Take conv2d as example: see Conv2d.cpp
 Tensor<double> NetworkModel::forward(Tensor<double> &x) {
     for (auto &module : modules_) {
         x = module->forward(x);

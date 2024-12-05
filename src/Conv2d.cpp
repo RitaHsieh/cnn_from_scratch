@@ -19,7 +19,8 @@ Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int stride, i
     this->stride = stride;
     this->padding = padding;
 }
-
+// TODO: add &Conv2d::forwardCUDA() here, and kernel call for convolve2dCUDA
+// see: Tensor.cpp
 Tensor<double> &Conv2d::forward(Tensor<double> &input) {
     input_ = input;
     product_ = input.convolve2d(kernels, stride, padding, bias);
@@ -27,6 +28,7 @@ Tensor<double> &Conv2d::forward(Tensor<double> &input) {
     return product_;
 }
 
+// TODO: add Conv2d::backpropCUDA() here, and kernel call for operation
 Tensor<double> Conv2d::backprop(Tensor<double> chain_gradient, double learning_rate) {
     Tensor<double> kernels_gradient(kernels.num_dims, kernels.dims);
     Tensor<double> input_gradient(input_.num_dims, input_.dims);
