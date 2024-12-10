@@ -8,7 +8,7 @@
 #include "../include/MNISTDataLoader.h"
 #include "../include/ReLU.h"
 #include "../include/Tensor.h"
-#include "../include/Conv2d.h"
+#include "../include/Conv2d.cuh" // change from h to cuh
 #include "../include/MaxPool.h"
 #include "../include/LinearLRScheduler.h"
 
@@ -17,7 +17,7 @@ using namespace std;
 /*
  * Train a neural network on the MNIST data set and evaluate its performance
  */
-BATCH_SIZE = 32;
+const int BATCH_SIZE = 32;
 
 int main(int argc, char **argv) {
     if (argc < 2) {

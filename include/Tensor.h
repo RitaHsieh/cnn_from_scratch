@@ -47,6 +47,9 @@ public:
 
     void add(int i, int j, int k, int l, T value);
 
+    T* getData();
+    void setData(T* data);
+
     /*
      * Matrix multiplication
      */

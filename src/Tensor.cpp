@@ -5,7 +5,6 @@
 #include "../include/Tensor.h"
 #include <cstring> // memset
 
-
 template
 class Tensor<int>;
 
@@ -48,6 +47,16 @@ void Tensor<T>::set(int i, T value) {
 template<typename T>
 void Tensor<T>::add(int i, T value) {
     data_[i] += value;
+}
+
+template<typename T>
+T* Tensor<T>::getData() {
+    return data_;
+}
+
+template<typename T>
+void Tensor<T>::setData(T* data) {
+    data_ = data;
 }
 
 template<typename T>
@@ -387,7 +396,7 @@ void Tensor<T>::dropout(std::default_random_engine generator, std::uniform_real_
     }
 }
 
-// add __global__ ooxx convolve2dCUDA() method
+// TODO: add __global__ ooxx convolve2dCUDA() method
 template<typename T>
 Tensor<T> Tensor<T>::convolve2d(Tensor<T> kernels, int stride, int padding, Tensor<T> bias) {
     assert(kernels.dims[1] == dims[1]);

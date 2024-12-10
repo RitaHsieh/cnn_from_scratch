@@ -14,7 +14,14 @@ class Module {
 protected:
     bool isEval = false;
 public:
-    virtual Tensor<double> &forward(Tensor<double> &input) = 0;
+
+    virtual Tensor<double> &forward(Tensor<double> &input) {
+        throw std::runtime_error("This method is not supported for this type.");
+    }
+
+    virtual double * forward(Tensor<double> &input, double* d_in) {
+        throw std::runtime_error("This method is not supported for this type.");
+    }
 
     virtual Tensor<double> backprop(Tensor<double> chainGradient, double learning_rate) = 0;
 

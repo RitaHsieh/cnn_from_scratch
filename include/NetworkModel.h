@@ -27,6 +27,8 @@ public:
 
     Tensor<double> forward(Tensor<double> &x);
 
+    Tensor<double> forwardCUDA(Tensor<double> &x);
+
     std::vector<int> predict(Tensor<double> &x);
 
     void load(std::string path);

@@ -5,6 +5,8 @@
 #include "../include/NetworkModel.h"
 #include "../include/LRScheduler.h"
 #include "../include/Tensor.h"
+#include "../include/Module.h"
+#include "../include/Conv2d.cuh"
 
 using namespace std;
 
@@ -17,7 +19,7 @@ NetworkModel::NetworkModel(std::vector<Module *> &modules, OutputLayer *output_l
 // TODO: allocate global memory
 double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
     // Forward
-    Tensor<double> output = forward(x);
+    Tensor<double> output = forwardCUDA(x);
 
     //Backprop
     // TODO: call backpropCUDA(y) instead
@@ -33,6 +35,31 @@ double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
 }
 
 // TODO: create CUDA version of forward that call for a loop of forwardCUDA(x)
+Tensor<double> NetworkModel::forwardCUDA(Tensor<double> &x) {
+    int size = x.dims[0] * x.dims[1] * x.dims[2] * x.dims[3] * sizeof(double); // input is double
+    double *d_x, *d_out;
+
+    cudaMalloc((void **) &d_x, size);
+    cudaMemcpy(d_x, x.getData(), size, cudaMemcpyHostToDevice);
+    // 全部都用好之後可以全部都用指標當作I/O
+    // 但是現在暫時不行
+    // modules_[0]->setInputPointer(d_x);
+    Conv2d* conv_layer = dynamic_cast<Conv2d*>(modules_[0]);
+    d_out = conv_layer->forward(x, d_x);
+
+    int output_size = conv_layer->getOutputSize();
+    x = conv_layer->initOutputTensor();
+    cudaMemcpy(x.getData(), d_out, output_size, cudaMemcpyDeviceToHost);
+    
+    cudaFree(d_out); // TODO: general
+    for (int i=1; i < (int) modules_.size(); ++i) {
+        x = modules_[i]->forward(x);
+    }
+    cudaFree(d_x); // TODO: general
+    return output_layer_->predict(x);
+
+}
+
 // Take conv2d as example: see Conv2d.cpp
 Tensor<double> NetworkModel::forward(Tensor<double> &x) {
     for (auto &module : modules_) {

@@ -1,8 +1,4 @@
-//
-// Created by lucas on 14/04/19.
-//
-
-#include "../include/Conv2d.h"
+#include "../include/Conv2d.cuh"
 
 Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int stride, int padding, int seed) {
     std::default_random_engine generator(seed);
@@ -19,16 +15,97 @@ Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int stride, i
     this->stride = stride;
     this->padding = padding;
 }
-// TODO: add &Conv2d::forwardCUDA() here, and kernel call for convolve2dCUDA
-// see: Tensor.cpp
-Tensor<double> &Conv2d::forward(Tensor<double> &input) {
-    input_ = input;
-    
-    product_ = input.convolve2d(kernels, stride, padding, bias);
 
-    return product_;
+__global__
+void Conv2d_gpu(int stride, int padding, double* kernel, double* d_in, double* d_out, double* bias,\
+                int k_outchannel, int k_inchannel, int k_height, int k_width, \
+                int batch_size, int depth, int height, int width, \
+                int out_height, int out_width) {
+    // Block indices
+    int i = blockIdx.x; // batch index
+    int j = blockIdx.y; // output volume index
+    int k = threadIdx.x; // vertical index in the output volume
+    int l = threadIdx.y; // horizontal index in the output volume
+
+    if (k >= out_height || l >= out_width) return;
+
+    int im_si = stride * k - padding; // height
+    int im_sj = stride * l - padding; // width
+    double total = 0;
+    double a, b;
+    for (int m = 0; m < k_inchannel; ++m) { // pra cada canal do filtro
+        for (int n = 0; n < k_height; ++n) {
+            for (int o = 0; o < k_width; ++o) {
+                int x = im_si + n, y = im_sj + o;
+                if (x < 0 || x >= height || y < 0 || y >= width)
+                    continue; // se for regiao do padding, pula (soma 0)
+                // double a = get(i, m, x, y);
+                a = d_in[((i*batch_size + m)*depth + x) * height + y];
+                // double b = kernels.get(j, m, n, o);
+                b = kernel[((j*k_outchannel + m)*k_inchannel + n)*k_height + o];
+                total += a * b;
+            }
+        }
+    }
+    d_out[((i * batch_size+ j)*k_outchannel + k)*out_height + l] = total;
 }
 
+// void setInputPointer(double *pt) {
+//     d_in = pt;
+// }
+// TODO: add &Conv2d::forwardCUDA() here, and kernel call for convolve2dCUDA
+// see: Tensor.cpp
+// 暫時把input留著，等backprop做完再拿掉
+double* Conv2d::forward(Tensor<double> &input, double * x) {
+    input_ = input;
+    d_in = x;
+
+    // allocate memory for output
+    int output_w = ((input.dims[3] + 2 * padding - (kernels.dims[3] - 1) - 1) / stride) + 1;
+    int output_h = ((input.dims[2] + 2 * padding - (kernels.dims[2] - 1) - 1) / stride) + 1;
+    int size = input.dims[0] * kernels.dims[0] * output_h * output_w;
+    cudaMalloc((void **) &d_out, size);
+
+    // allocate memory for kernel
+    double* d_kernel;
+    int kernel_size = kernels.dims[0] * kernels.dims[1] * kernels.dims[2] * kernels.dims[3];
+    cudaMalloc((void **) &d_kernel, kernel_size);
+    cudaMemcpy(d_kernel, kernels.getData(), kernel_size, cudaMemcpyHostToDevice);
+
+    // allocate memory for bias
+    double* d_bias;
+    int bias_size = bias.dims[0];
+    cudaMalloc((void **) &d_bias, bias_size);
+    cudaMemcpy(d_bias, bias.getData(), bias_size, cudaMemcpyHostToDevice);
+
+    dim3 numBlocks(input.dims[0], kernels.dims[0]);
+    dim3 threadsPerBlock(kernels.dims[2], kernels.dims[3]);
+    Conv2d_gpu<<<numBlocks, threadsPerBlock>>>( \
+                stride, padding, d_kernel, d_in, d_out, d_bias, 
+                kernels.dims[0], kernels.dims[1], kernels.dims[2], kernels.dims[3], \
+                input.dims[0], input.dims[1], input.dims[2], input.dims[3], \
+                output_h, output_w
+            );
+
+    return d_out;
+}
+
+
+int Conv2d::getOutputSize() {
+    int output_w = ((input_.dims[3] + 2 * padding - (kernels.dims[3] - 1) - 1) / stride) + 1;
+    int output_h = ((input_.dims[2] + 2 * padding - (kernels.dims[2] - 1) - 1) / stride) + 1;
+    int size = input_.dims[0] * kernels.dims[0] * output_h * output_w;
+    return size;
+}
+
+Tensor<double> &Conv2d::initOutputTensor() {
+    int output_w = ((input_.dims[3] + 2 * padding - (kernels.dims[3] - 1) - 1) / stride) + 1;
+    int output_h = ((input_.dims[2] + 2 * padding - (kernels.dims[2] - 1) - 1) / stride) + 1;
+    int result_dims[] = {input_.dims[0], kernels.dims[0], output_h, output_w};
+    Tensor<double> product(4, result_dims);
+    product_ = product;
+    return product_;
+}
 // Tensor<double> &Conv2d::forward(Tensor<double> &input) {
 //     input_ = input;
 //     product_ = input.convolve2d(kernels, stride, padding, bias);
