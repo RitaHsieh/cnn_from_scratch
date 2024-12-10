@@ -4,6 +4,7 @@
 
 #include "../include/MNISTDataLoader.h"
 #include "../include/Tensor.h"
+#include <omp.h>
 
 
 MNISTDataLoader::MNISTDataLoader(std::string const &imagesPath, std::string const &labelsPath,
@@ -99,6 +100,7 @@ std::pair<Tensor<double>, std::vector<int>> MNISTDataLoader::nextBatch() {
     int dims[] = {size, 1, (int) rows_, (int) cols_};
     Tensor<double> tensorImgs(4, dims);
     std::vector<int> vecLabels;
+    #pragma omp parallel for collapse(3)
     for (int i = 0; i < size; ++i) {
         for (int j = 0; j < rows_; ++j) {
             for (int k = 0; k < cols_; ++k) {
