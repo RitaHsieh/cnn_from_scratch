@@ -16,6 +16,26 @@ NetworkModel::NetworkModel(std::vector<Module *> &modules, OutputLayer *output_l
     output_layer_ = output_layer;
 }
 
+bool NetworkModel::init(int batch_size, int image_width, int image_height) {
+    // 2 things to be done
+    // 1. allocate device memory for input, output and the data between the layers
+    // 2. set dimension for each layer
+    int num_dims = 4;
+    int dims[4] = {batch_size, 1, image_width, image_height};
+    int size = batch_size * 1 * image_width * image_height
+    double* d_ptr;
+    cudaMalloc((void **)&d_ptr, size);
+    for(const Module& layer: modules) {
+        layer->setInputProps(num_dims, dims, size);
+        layer->setD_in(d_ptr);
+        num_dims = layer->getOutputNumDims();
+        dims = layer->getOutputDims();
+        size = layer->getOutputSize();
+        cudaMalloc((void **)&d_ptr, size);
+        layer->setD_out(d_ptr);
+    }
+}
+
 
 double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
     // Forward

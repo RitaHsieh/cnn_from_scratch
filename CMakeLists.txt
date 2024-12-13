@@ -24,7 +24,7 @@ add_executable(neural_net_in_cpp
     src/Sigmoid.cpp 
     src/SoftmaxClassifier.cpp 
     src/Dropout.cpp 
-    src/ReLU.cpp 
+    src/ReLU.cu 
     src/MaxPool.cpp 
     src/LinearLRScheduler.cpp 
     src/Conv2d.cu  # 添加 CUDA 檔案
