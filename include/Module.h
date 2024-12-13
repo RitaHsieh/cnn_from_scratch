@@ -14,17 +14,30 @@ class Module {
 protected:
     bool isEval = false;
 public:
-    // implement on all layer
-    virtual int* getOutputDim() {
+    virtual void setInputProps(int num_dims, int const *dims, int size) {
         throw std::runtime_error("This method is not supported for this type.");
     }
-    
-    // implement on all layer
+
+    virtual int* getOutputDims() {
+        throw std::runtime_error("This method is not supported for this type.");
+    }
+
     virtual int getOutputSize() {
         throw std::runtime_error("This method is not supported for this type.");
     }
 
-    // implement on last layer
+    virtual void setD_in(double* d_ptr) {
+        throw std::runtime_error("This method is not supported for this type.");
+    }
+
+    virtual void setD_out(double* d_ptr) {
+        throw std::runtime_error("This method is not supported for this type.");
+    }
+
+    virtual void allocOutputDeviceMemory() {
+        throw std::runtime_error("This method is not supported for this type.");
+    }
+
     virtual Tensor<double> &initOutputTensor() {
         throw std::runtime_error("This method is not supported for this type.");
     }

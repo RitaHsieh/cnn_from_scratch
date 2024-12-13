@@ -18,6 +18,8 @@ using namespace std;
  * Train a neural network on the MNIST data set and evaluate its performance
  */
 const int BATCH_SIZE = 32;
+const int IMAGE_HEIGHT = 28;
+const int IMAGE_WIDTH = 28;
 
 int main(int argc, char **argv) {
     if (argc < 2) {
@@ -36,7 +38,8 @@ int main(int argc, char **argv) {
                                 new FullyConnected(30, 10, seed)};
     auto lr_sched = new LinearLRScheduler(0.2, -0.000005);
     NetworkModel model = NetworkModel(modules, new SoftmaxClassifier(), lr_sched);
-//    model.load("network.txt");
+    // model.load("network.txt");
+    model.init(BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT);
 
     int epochs = 1;
     printf("Training for %d epoch(s).\n", epochs);
