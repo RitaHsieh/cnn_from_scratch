@@ -18,7 +18,7 @@ private:
     int output_num_dims = 2;
     int output_size;
 
-    double* d_weight;
+    // double* d_weight;
     double* d_in;
     double* d_out;
 
@@ -29,11 +29,13 @@ public:
 
     void setInputProps(int num_dims, int const *dims, int size);
     int getOutputNumDims() { return output_num_dims; };
-    int* getOutputDims() { return output_num_dims; };
-    int getOutputSize() { return output_dims; };
+    int* getOutputDims() { return output_dims; };
+    int getOutputSize() { return output_size; };
     void setD_in(double* d_ptr) { d_in = d_ptr; };
     void setD_out(double* d_ptr) { d_out = d_ptr; };
     
+    void forward();
+    void backprop();
 
     Tensor<double> &forward(Tensor<double> &input) override;
 

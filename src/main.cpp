@@ -6,7 +6,7 @@
 #include "../include/Dropout.h"
 #include "../include/SoftmaxClassifier.h"
 #include "../include/MNISTDataLoader.h"
-#include "../include/ReLU.h"
+#include "../include/ReLU.cuh"
 #include "../include/Tensor.h"
 #include "../include/Conv2d.cuh" // change from h to cuh
 #include "../include/MaxPool.h"
