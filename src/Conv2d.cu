@@ -79,7 +79,7 @@ double* Conv2d::forward(Tensor<double> &input, double * x) {
     cudaMemcpy(d_bias, bias.getData(), bias_size, cudaMemcpyHostToDevice);
 
     dim3 numBlocks(input.dims[0], kernels.dims[0]);
-    dim3 threadsPerBlock(kernels.dims[2], kernels.dims[3]);
+    dim3 threadsPerBlock(output_h, output_w);
     Conv2d_gpu<<<numBlocks, threadsPerBlock>>>( \
                 stride, padding, d_kernel, d_in, d_out, d_bias, 
                 kernels.dims[0], kernels.dims[1], kernels.dims[2], kernels.dims[3], \
@@ -114,6 +114,28 @@ Tensor<double> &Conv2d::initOutputTensor() {
 // }
 
 // TODO: add Conv2d::backpropCUDA() here, and kernel call for operation
+__global__
+void Conv2dBackProp_gpu() {
+
+    for (int fx = 0; fx < kernels.dims[2]; fx++) { // for each x in the filter
+        int ix = x + fx; // input x
+        if (ix >= 0 && ix < input_.dims[2]) {
+            for (int fy = 0; fy < kernels.dims[3]; fy++) { // for each y in the filter
+                int iy = y + fy; // input y
+                if (iy >= 0 && iy < input_.dims[3]) {
+                    for (int fc = 0; fc < kernels.dims[1]; fc++) { // for each channel in the filter
+                        kernels_gradient.add(f, fc, fx, fy, input_.get(i, fc, ix, iy) * chain_grad);
+                        input_gradient.add(i, fc, ix, iy, kernels.get(f, fc, fx, fy) * chain_grad);
+
+                    }
+                }
+            }
+        }
+    }
+    bias_gradient.add(f, chain_grad);
+
+}
+
 Tensor<double> Conv2d::backprop(Tensor<double> chain_gradient, double learning_rate) {
     Tensor<double> kernels_gradient(kernels.num_dims, kernels.dims);
     Tensor<double> input_gradient(input_.num_dims, input_.dims);

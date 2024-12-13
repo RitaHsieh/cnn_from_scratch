@@ -16,7 +16,7 @@ NetworkModel::NetworkModel(std::vector<Module *> &modules, OutputLayer *output_l
     output_layer_ = output_layer;
 }
 
-// TODO: allocate global memory
+
 double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
     // Forward
     Tensor<double> output = forwardCUDA(x);
@@ -34,16 +34,13 @@ double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
     return loss_and_cost_gradient.first;
 }
 
-// TODO: create CUDA version of forward that call for a loop of forwardCUDA(x)
 Tensor<double> NetworkModel::forwardCUDA(Tensor<double> &x) {
     int size = x.dims[0] * x.dims[1] * x.dims[2] * x.dims[3] * sizeof(double); // input is double
     double *d_x, *d_out;
 
     cudaMalloc((void **) &d_x, size);
     cudaMemcpy(d_x, x.getData(), size, cudaMemcpyHostToDevice);
-    // 全部都用好之後可以全部都用指標當作I/O
-    // 但是現在暫時不行
-    // modules_[0]->setInputPointer(d_x);
+    
     Conv2d* conv_layer = dynamic_cast<Conv2d*>(modules_[0]);
     d_out = conv_layer->forward(x, d_x);
 
@@ -59,6 +56,28 @@ Tensor<double> NetworkModel::forwardCUDA(Tensor<double> &x) {
     return output_layer_->predict(x);
 
 }
+
+// This will be the forwardCUDA for general version
+
+// Tensor<double> NetworkModel::forwardCUDA(Tensor<double> &x) {
+//     int size = x.dims[0] * x.dims[1] * x.dims[2] * x.dims[3] * sizeof(double); // input is double
+//     double *d_x;
+
+//     cudaMalloc((void **) &d_x, size);
+//     cudaMemcpy(d_x, x.getData(), size, cudaMemcpyHostToDevice);
+    
+//     int *input_dim = x.dims;
+//     for (auto &module : modules_) {
+//         d_x = module->forward(input_dim, d_x);
+//         input_dim = module->getOutputDim(); // d1, d2, d3, d4
+//     }
+//     int output_size = modules_[-1]->getOutputSize();
+//     x = modules_[-1]->initOutputTensor();
+//     cudaMemcpy(x.getData(), d_x, output_size, cudaMemcpyDeviceToHost);
+    
+//     cudaFree(d_x);
+//     return output_layer_->predict(x);
+// }
 
 // Take conv2d as example: see Conv2d.cpp
 Tensor<double> NetworkModel::forward(Tensor<double> &x) {

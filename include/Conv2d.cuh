@@ -20,11 +20,9 @@ public:
 
     Conv2d(int in_channels, int out_channels, int kernel_size, int stride, int padding, int seed = 0);
 
-    int getOutputSize();
+    int getOutputSize() override;
 
-    // void setInputPointer(double* d_in) override;
-
-    Tensor<double> &initOutputTensor();
+    Tensor<double> &initOutputTensor() override;
     
     double * forward(Tensor<double> &input, double *d_in) override;
 
@@ -33,8 +31,6 @@ public:
     void load(FILE *file_model) override;
 
     void save(FILE *file_model) override;
-
-    // __global__ void Conv2d_gpu();
 };
 
 

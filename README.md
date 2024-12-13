@@ -10,9 +10,13 @@ bash get_mnist.sh
 ```
 Generate your Makefile:
 ```sh
-cmake -DCMAKE_BUILD_TYPE=Release
+cmake -B build -S .
 ```
 Make the code:
+```sh
+cmake --build build 
+```
+or
 ```sh
 make
 ```
