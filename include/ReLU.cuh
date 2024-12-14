@@ -27,15 +27,15 @@ private:
 public:
     ReLU();
 
-    void setInputProps(int num_dims, int const *dims, int size)override;
-    int getOutputNumDims() { return output_num_dims; }override;
-    int* getOutputDims() { return output_dims; }override;
-    int getOutputSize() { return output_size; }override;
-    void setD_in(double* d_ptr) { d_in = d_ptr; }override;
-    void setD_out(double* d_ptr) { d_out = d_ptr; }override;
+    void setInputProps(int num_dims, int const *dims, int size) override;
+    int getOutputNumDims() override { return output_num_dims; };
+    int* getOutputDims() override { return output_dims; };
+    int getOutputSize() override { return output_size; };
+    void setD_in(double* d_ptr) override { d_in = d_ptr; };
+    void setD_out(double* d_ptr) override { d_out = d_ptr; };
     
-    void forward();
-    void backprop();
+    void forward() override;
+    double* backprop(double* d_ptr, double learning_rate) override;
 
     Tensor<double> &forward(Tensor<double> &input) override;
 

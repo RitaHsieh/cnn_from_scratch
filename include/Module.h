@@ -18,6 +18,10 @@ public:
         throw std::runtime_error("This method is not supported for this type.");
     }
 
+    virtual int getOutputNumDims() {
+        throw std::runtime_error("This method is not supported for this type.");
+    }
+
     virtual int* getOutputDims() {
         throw std::runtime_error("This method is not supported for this type.");
     }
@@ -46,12 +50,18 @@ public:
         throw std::runtime_error("This method is not supported for this type.");
     }
 
-    virtual double * forward(Tensor<double> &input, double* d_in) {
+    virtual void forward() {
         throw std::runtime_error("This method is not supported for this type.");
     }
+    
+    virtual double * backprop(double * d_ptr, double learning_rate) {
+        throw std::runtime_error("This method is not supported for this type.");
+    }   
 
-    virtual Tensor<double> backprop(Tensor<double> chainGradient, double learning_rate) = 0;
-
+    virtual Tensor<double> backprop(Tensor<double> chainGradient, double learning_rate) {
+        throw std::runtime_error("This method is not supported for this type.");
+    }   
+    
     virtual void load(FILE *file_model) = 0;
 
     virtual void save(FILE *file_model) = 0;

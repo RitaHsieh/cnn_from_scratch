@@ -21,11 +21,12 @@ bool NetworkModel::init(int batch_size, int image_width, int image_height) {
     // 1. allocate device memory for input, output and the data between the layers
     // 2. set dimension for each layer
     int num_dims = 4;
-    int dims[4] = {batch_size, 1, image_width, image_height};
-    int size = batch_size * 1 * image_width * image_height
+    int* dims = new int[4]{batch_size, 1, image_width, image_height};
+    int size = batch_size * 1 * image_width * image_height;
     double* d_ptr;
     cudaMalloc((void **)&d_ptr, size);
-    for(const Module& layer: modules) {
+    this->d_in = d_ptr;
+    for(auto &layer: modules_) {
         layer->setInputProps(num_dims, dims, size);
         layer->setD_in(d_ptr);
         num_dims = layer->getOutputNumDims();
@@ -34,6 +35,12 @@ bool NetworkModel::init(int batch_size, int image_width, int image_height) {
         cudaMalloc((void **)&d_ptr, size);
         layer->setD_out(d_ptr);
     }
+    this->output_num_dims = num_dims;
+    this->output_dims = dims;
+    this->output_size = size;
+    this->d_out = d_ptr;
+
+    return true;
 }
 
 
@@ -42,11 +49,12 @@ double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
     Tensor<double> output = forwardCUDA(x);
 
     //Backprop
-    // TODO: call backpropCUDA(y) instead
     pair<double, Tensor<double>> loss_and_cost_gradient = output_layer_->backprop(y);
     Tensor<double> chain_gradient = loss_and_cost_gradient.second;
+    cudaMemcpy(this->d_out, chain_gradient.getData(), this->output_size * sizeof(double), cudaMemcpyHostToDevice);
+    double* d_update_ptr = this->d_out;
     for (int i = (int) modules_.size() - 1; i >= 0; --i) {
-        chain_gradient = modules_[i]->backprop(chain_gradient, lr_scheduler_->learning_rate);
+        d_update_ptr = modules_[i]->backprop(d_update_ptr, lr_scheduler_->learning_rate);
     }
     ++iteration;
     lr_scheduler_->onIterationEnd(iteration);
@@ -54,27 +62,14 @@ double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
     return loss_and_cost_gradient.first;
 }
 
-Tensor<double> NetworkModel::forwardCUDA(Tensor<double> &x) {
-    int size = x.dims[0] * x.dims[1] * x.dims[2] * x.dims[3] * sizeof(double); // input is double
-    double *d_x, *d_out;
-
-    cudaMalloc((void **) &d_x, size);
-    cudaMemcpy(d_x, x.getData(), size, cudaMemcpyHostToDevice);
-    
-    Conv2d* conv_layer = dynamic_cast<Conv2d*>(modules_[0]);
-    d_out = conv_layer->forward(x, d_x);
-
-    int output_size = conv_layer->getOutputSize();
-    x = conv_layer->initOutputTensor();
-    cudaMemcpy(x.getData(), d_out, output_size, cudaMemcpyDeviceToHost);
-    
-    cudaFree(d_out); // TODO: general
-    for (int i=1; i < (int) modules_.size(); ++i) {
-        x = modules_[i]->forward(x);
+void NetworkModel::forwardCUDA(Tensor<double> &x) {
+    cudaMemcpy(this->d_in, x->getData(), x->getSize()*sizeof(double), cudaMemcpyHostToDevice);
+    for (auto &module : modules_) {
+        module->forward();
     }
-    cudaFree(d_x); // TODO: general
+    double* x = Tensor<double>(this->output_num_dims, output_dims);
+    cudaMemcpy(x.getData(), this->d_out, this->output_size * sizeof(double), cudaMemcpyDeviceToHost);
     return output_layer_->predict(x);
-
 }
 
 // This will be the forwardCUDA for general version
