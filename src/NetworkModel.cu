@@ -17,7 +17,7 @@ NetworkModel::NetworkModel(std::vector<Module *> &modules, OutputLayer *output_l
 }
 
 bool NetworkModel::init(int batch_size, int image_width, int image_height) {
-    // 2 things to be done
+    // two things to be done:
     // 1. allocate device memory for input, output and the data between the layers
     // 2. set dimension for each layer
     int num_dims = 4;

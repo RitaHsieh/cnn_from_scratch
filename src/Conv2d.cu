@@ -12,8 +12,37 @@ Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int stride, i
     bias = Tensor<double>(1, bias_dims);
     bias.randn(generator, distribution, 0);
 
+    // allocate memory for kernel
+    int kernel_size = kernels.dims[0] * kernels.dims[1] * kernels.dims[2] * kernels.dims[3];
+    cudaMalloc((void **) &d_kernel, kernel_size);
+    cudaMemcpy(d_kernel, kernels.getData(), kernel_size, cudaMemcpyHostToDevice);
+
+    // allocate memory for bias
+    int bias_size = bias.dims[0];
+    cudaMalloc((void **) &d_bias, bias_size);
+    cudaMemcpy(d_bias, bias.getData(), bias_size, cudaMemcpyHostToDevice);
+
     this->stride = stride;
     this->padding = padding;
+}
+
+Conv2d::void setInputProps(int num_dims, int const *dims, int size) {
+    // set input_dims, output_dims, input_size, output_size
+    for(int i=0; i<num_dims; i++) {
+        input_dims[0] = dims[0];
+    }
+
+    input_size = size;
+
+    output_dims[0] = input_dims[0];
+    output_dims[1] = kernels.dims[0];
+    output_dims[2] = ((input_dims[2] + 2 * padding - (kernels.dims[2] - 1) - 1) / stride) + 1;
+    output_dims[3] = ((input_dims[3] + 2 * padding - (kernels.dims[3] - 1) - 1) / stride) + 1;
+    
+    output_size = 1;
+    for(int i=0; i< 4; i++) {
+        output_size *= output_dims[i];
+    }
 }
 
 __global__
@@ -56,46 +85,17 @@ void Conv2d_gpu(int stride, int padding, double* kernel, double* d_in, double* d
 // TODO: add &Conv2d::forwardCUDA() here, and kernel call for convolve2dCUDA
 // see: Tensor.cpp
 // 暫時把input留著，等backprop做完再拿掉
-double* Conv2d::forward(Tensor<double> &input, double * x) {
-    input_ = input;
-    d_in = x;
-
-    // allocate memory for output
-    int output_w = ((input.dims[3] + 2 * padding - (kernels.dims[3] - 1) - 1) / stride) + 1;
-    int output_h = ((input.dims[2] + 2 * padding - (kernels.dims[2] - 1) - 1) / stride) + 1;
-    int size = input.dims[0] * kernels.dims[0] * output_h * output_w;
-    cudaMalloc((void **) &d_out, size);
-
-    // allocate memory for kernel
-    double* d_kernel;
-    int kernel_size = kernels.dims[0] * kernels.dims[1] * kernels.dims[2] * kernels.dims[3];
-    cudaMalloc((void **) &d_kernel, kernel_size);
-    cudaMemcpy(d_kernel, kernels.getData(), kernel_size, cudaMemcpyHostToDevice);
-
-    // allocate memory for bias
-    double* d_bias;
-    int bias_size = bias.dims[0];
-    cudaMalloc((void **) &d_bias, bias_size);
-    cudaMemcpy(d_bias, bias.getData(), bias_size, cudaMemcpyHostToDevice);
-
-    dim3 numBlocks(input.dims[0], kernels.dims[0]);
-    dim3 threadsPerBlock(output_h, output_w);
+void Conv2d::forward() {
+    
+    dim3 numBlocks(output_dims[0], output_dims[1]);
+    dim3 threadsPerBlock(output_dims[2], output_dims[3]);
     Conv2d_gpu<<<numBlocks, threadsPerBlock>>>( \
                 stride, padding, d_kernel, d_in, d_out, d_bias, 
                 kernels.dims[0], kernels.dims[1], kernels.dims[2], kernels.dims[3], \
-                input.dims[0], input.dims[1], input.dims[2], input.dims[3], \
-                output_h, output_w
+                input_dims[0], input_dims[1], input_dims[2], input_dims[3], \
+                output_dims[2], output_dims[3]
             );
 
-    return d_out;
-}
-
-
-int Conv2d::getOutputSize() {
-    int output_w = ((input_.dims[3] + 2 * padding - (kernels.dims[3] - 1) - 1) / stride) + 1;
-    int output_h = ((input_.dims[2] + 2 * padding - (kernels.dims[2] - 1) - 1) / stride) + 1;
-    int size = input_.dims[0] * kernels.dims[0] * output_h * output_w;
-    return size;
 }
 
 Tensor<double> &Conv2d::initOutputTensor() {
@@ -114,68 +114,156 @@ Tensor<double> &Conv2d::initOutputTensor() {
 // }
 
 // TODO: add Conv2d::backpropCUDA() here, and kernel call for operation
-__global__
-void Conv2dBackProp_gpu() {
 
-    for (int fx = 0; fx < kernels.dims[2]; fx++) { // for each x in the filter
-        int ix = x + fx; // input x
-        if (ix >= 0 && ix < input_.dims[2]) {
-            for (int fy = 0; fy < kernels.dims[3]; fy++) { // for each y in the filter
-                int iy = y + fy; // input y
-                if (iy >= 0 && iy < input_.dims[3]) {
-                    for (int fc = 0; fc < kernels.dims[1]; fc++) { // for each channel in the filter
-                        kernels_gradient.add(f, fc, fx, fy, input_.get(i, fc, ix, iy) * chain_grad);
-                        input_gradient.add(i, fc, ix, iy, kernels.get(f, fc, fx, fy) * chain_grad);
+__global__ 
+void Conv2d_input_gradient_gpu(
+    double* d_out,   // Gradient of the output (N, F, Ho, Wo)  
+    double* d_kernel,      // Kernel gradient to be computed (F, C, Hk, Wk)
+    double* d_input_temp,  // Input tensor (N, C, Hi, Wi)
+    int N, int F, int C,          // Batch size, number of filters, channels
+    int Ho, int Wo,               // Output height and width
+    int Hi, int Wi,               // Input height and width
+    int Hk, int Wk,               // Kernel height and width
+    int padding, int stride, 
+    int learning_rate)      // Padding and stride
+{
+    int b = blockIdx.x;   // Batch index
+    int d = blockIdx.y;   // Channel index of the input
+    int i = threadIdx.x; // Input height index
+    int j = threadIdx.y; // Input width index
 
-                    }
+    if (i >= Hi || j >= Wi) return; // Boundary check
+
+    // Compute input gradient
+    double input_grad_sum = 0.0;
+
+    for (int f = 0; f < F; ++f) {
+        for (int p = 0; p < Hk; ++p) {
+            for (int q = 0; q < Wk; ++q) {
+                int i_out = (i - p + padding) / stride;
+                int j_out = (j - q + padding) / stride;
+
+                if (i_out >= 0 && i_out < Ho && j_out >= 0 && j_out < Wo) {
+                    double chain_grad = d_out[((b * F + f) * Ho + i_out) * Wo + j_out];
+                    double kernel_value = d_kernel[((f * C + d) * Hk + p) * Wk + q];
+                    input_grad_sum += chain_grad * kernel_value;
                 }
             }
         }
     }
-    bias_gradient.add(f, chain_grad);
 
+    d_input_temp[((b * C + d) * Hi + i) * Wi + j] = input_grad_sum;
 }
 
-Tensor<double> Conv2d::backprop(Tensor<double> chain_gradient, double learning_rate) {
-    Tensor<double> kernels_gradient(kernels.num_dims, kernels.dims);
-    Tensor<double> input_gradient(input_.num_dims, input_.dims);
-    Tensor<double> bias_gradient(1, bias.dims);
-    kernels_gradient.zero();
-    input_gradient.zero();
-    bias_gradient.zero();
+extern __shared__ double shared_mem[];
+__global__ void Conv2d_kernel_gradient_gpu(
+    double* d_out, // Gradient of the output (N, F, Ho, Wo)
+    double* d_in,          // Input tensor (N, C, Hi, Wi)
+    double* d_kernel,      // Kernel gradient to be computed (F, C, Hk, Wk)
+    double* d_bias,
+    double* d_kernel_temp,
+    int N, int F, int C,          // Batch size, number of filters, channels
+    int Ho, int Wo,               // Output height and width
+    int Hi, int Wi,               // Input height and width
+    int Hk, int Wk,               // Kernel height and width
+    int padding, int stride, 
+    int learning_rate,
+    int kernel_size )      // Padding and stride
+{
+    int f = blockIdx.x / C;   // Filter index
+    int c = blockIdx.x % C;   // Channel index
+    int p = threadIdx.y;  // Kernel height index
+    int q = threadIdx.z;  // Kernel width index
 
-    // backprop convolution -- not using Tensor.convolve2d for efficiency
-    for (int i = 0; i < input_.dims[0]; ++i) { // for each batch img
-        for (int f = 0; f < kernels.dims[0]; f++) { // for each filter
-            int x = -padding;
-            for (int cx = 0; cx < chain_gradient.dims[2]; x += stride, cx++) { // for each x in the chain gradient
-                int y = -padding;
-                for (int cy = 0; cy < chain_gradient.dims[3]; y += stride, cy++) { // for each y in the chain gradient
-                    double chain_grad = chain_gradient.get(i, f, cx, cy);
-                    for (int fx = 0; fx < kernels.dims[2]; fx++) { // for each x in the filter
-                        int ix = x + fx; // input x
-                        if (ix >= 0 && ix < input_.dims[2]) {
-                            for (int fy = 0; fy < kernels.dims[3]; fy++) { // for each y in the filter
-                                int iy = y + fy; // input y
-                                if (iy >= 0 && iy < input_.dims[3]) {
-                                    for (int fc = 0; fc < kernels.dims[1]; fc++) { // for each channel in the filter
-                                        kernels_gradient.add(f, fc, fx, fy, input_.get(i, fc, ix, iy) * chain_grad);
-                                        input_gradient.add(i, fc, ix, iy, kernels.get(f, fc, fx, fy) * chain_grad);
+    if (p >= Hk || q >= Wk) return; // Boundary check
 
-                                    }
-                                }
-                            }
-                        }
+    // Shared memory for accumulating kernel gradient within a block
+    shared_mem[((f * C + c) * Hk + p) * Wk + q] = 0.0;
+    if( c == 0 && p == 0 && q == 0 ){
+        shared_mem[kernel_size + f] = 0.0;
+    }
+    __syncthreads();
+
+    // Compute kernel gradient
+    for (int n = 0; n < N; ++n) {
+        for (int ho = 0; ho < Ho; ++ho) {
+            for (int wo = 0; wo < Wo; ++wo) {
+                int i = ho * stride - padding + p;
+                int j = wo * stride - padding + q;
+
+                if (i >= 0 && i < Hi && j >= 0 && j < Wi) {
+                    double input_value = d_in[((n * C + c) * Hi + i) * Wi + j];
+                    double chain_grad_value = d_out[((n * F + f) * Ho + ho) * Wo + wo];
+                    shared_mem[((f * C + c) * Hk + p) * Wk + q] += chain_grad_value * input_value;
+
+                    if (c == 0 && p == 0 && q == 0) {
+                        shared_mem[kernel_size + f] += chain_grad_value;
                     }
-                    bias_gradient.add(f, chain_grad);
                 }
             }
         }
     }
-    kernels -= kernels_gradient * learning_rate;
-    bias -= bias_gradient * learning_rate;
 
-    return input_gradient;
+    // Synchronize threads within the block
+    d_kernel_temp[((f * C + c) * Hk + p) * Wk + q] = d_kernel[((f * C + c) * Hk + p) * Wk + q] \
+                             - learning_rate * shared_mem[((f * C + c) * Hk + p) * Wk + q];
+    if(c == 0 && p == 0 && q == 0 ){
+        d_bias[f] = shared_mem[kernel_size + f];
+    }
+}
+
+
+double * Conv2d::backprop(double* d_chain_gradient, int learning_rate) {
+    
+    d_out = d_chain_gradient;
+    double* d_input_temp, d_kernel_temp;
+
+    int kernel_size = kernels.dims[0] * kernels.dims[1] * kernels.dims[2] * kernels.dims[3];
+    cudaMalloc((void **) &d_kernel_temp, kernel_size);
+    cudaMalloc((void **) &d_input_temp, input_size);
+    
+    cudaStream_t stream[2];
+    cudaStreamCreate(&stream[1]);
+    cudaStreamCreate(&stream[2]);
+ 
+
+    dim3 numBlocks(input_dims[0], input_dims[1]);
+    dim3 threadsPerBlock(input_dims[2], input_dims[3]);
+    Conv2d_input_gradient_gpu<<<numBlocks, threadsPerBlock, 0, stream[0]>>>( \
+                d_out, d_kernel, d_in_temp \
+                output_dims[0], output_dims[1], input_dims[1], \
+                output_dims[2], output_dims[3], input_dims[2], input_dims[3], \
+                kernel.dims[2], kernel.dims[3], \
+                padding, stride, learning_rate
+            );
+
+    // dim3 numBlocks(output_dims[0], output_dims[1]);
+    // launch for kernel gradient 
+    int smem_size = kernels.dims[0] * kernels.dims[1] * kernels.dims[2] * kernels.dims[3] + kernels.dims[0];
+    
+    dim3 threadsPerBlock(kernel_dims[0]*kernel_dims[1], kernel_dims[2], kernel_dims[3]);
+
+    Conv2d_kernel_gradient_gpu<<<1, threadsPerBlock, smem_size, stream[1]>>>( \
+                d_out, d_in, d_kernel, d_bias, d_kernel_temp \
+                output_dims[0], output_dims[1], input_dims[1], \
+                output_dims[2], output_dims[3], input_dims[2], input_dims[3], \
+                kernel.dims[2], kernel.dims[3], \
+                padding, stride, learning_rate, kernel_size
+            );
+
+    cudaStreamSynchronize(stream[0]);
+    cudaStreamSynchronize(stream[1]);
+
+    cudaStreamDestroy(stream[0]);
+    cudaStreamDestroy(stream[1]);
+
+    cudaFree(d_in);
+    cudaFree(d_kernel);
+
+    d_in = d_in_temp;
+    d_kernel = d_kernel_temp;
+
+    return d_in;
 }
 
 void Conv2d::load(FILE *file_model) {

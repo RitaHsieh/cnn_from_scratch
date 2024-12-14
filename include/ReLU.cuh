@@ -27,12 +27,12 @@ private:
 public:
     ReLU();
 
-    void setInputProps(int num_dims, int const *dims, int size);
-    int getOutputNumDims() { return output_num_dims; };
-    int* getOutputDims() { return output_num_dims; };
-    int getOutputSize() { return output_dims; };
-    void setD_in(double* d_ptr) { d_in = d_ptr; };
-    void setD_out(double* d_ptr) { d_out = d_ptr; };
+    void setInputProps(int num_dims, int const *dims, int size)override;
+    int getOutputNumDims() { return output_num_dims; }override;
+    int* getOutputDims() { return output_num_dims; }override;
+    int getOutputSize() { return output_dims; }override;
+    void setD_in(double* d_ptr) { d_in = d_ptr; }override;
+    void setD_out(double* d_ptr) { d_out = d_ptr; }override;
     
 
     Tensor<double> &forward(Tensor<double> &input) override;

@@ -9,18 +9,31 @@
 
 class Conv2d : public Module {
 private:
+    int input_dims[4]{};
+    int input_size;
+    int output_dims[4]{};
+    int output_num_dims = 4;
+    int output_size;
+
     Tensor<double> input_;
     Tensor<double> product_;
     int stride, padding;
     double *d_in;
     double *d_out;
+    double *d_kernel;
+    double *d_bias;
 public:
     Tensor<double> kernels;
     Tensor<double> bias;
 
     Conv2d(int in_channels, int out_channels, int kernel_size, int stride, int padding, int seed = 0);
 
-    int getOutputSize() override;
+    void setInputProps(int num_dims, int const *dims, int size)override;
+    int getOutputNumDims() { return output_num_dims; }override;
+    int* getOutputDims() { return output_num_dims; }override;
+    int getOutputSize() { return output_dims; }override;
+    void setD_in(double* d_ptr) { d_in = d_ptr; }override;
+    void setD_out(double* d_ptr) { d_out = d_ptr; }override;
 
     Tensor<double> &initOutputTensor() override;
     
