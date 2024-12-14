@@ -24,20 +24,21 @@ void ReLU::setInputProps(int num_dims, int const *dims, int size) {
 }
 
 void ReLU::forward() {
-    forward_cuda<<<this->input_dims[0], 32>>>(this->d_in, this->d_out, this->input_size);
+    dim3 grid(this->input_dims[0] * ceil(input_dims[1]/128));
+    forward_cuda<<<grid, 128>>>(this->d_in, this->d_out, this->input_dims[1]);
 }
 
-__global__ void forward_cuda(double* d_in, double* d_out, int input_size) {
+__global__ void forward_cuda(double* d_in, double* d_out, int input_dims_1) {
     
-    // blockDim = 32
-    // gridDim = batch_size
+    // blockDim = 128
+    // gridDim = batch_size * ceil(input_dims[1]/128) 
 
-    int tx = threadIdx.x;   // no
-    // int diff_tx = blockDim.x; // # 32
+    int tx = threadIdx.x;   
+    // int diff_tx = blockDim.x; // # 128
     int bx = blockIdx.x;    // no. of batch
 
-    for(int i = tx; i<input_size; i+=32) {
-        d_out[bx * input_size + tx] = (d_in[bx * input_size + tx]>0) ? d_in[bx * input_size + tx]>0 : 0;
+    for(int i = tx; i<input_dims_1; i+=128) {
+        d_out[bx * input_dims_1 + tx] = (d_in[bx * input_dims_1 + tx]>0) ? d_in[bx * input_dims_1 + tx]>0 : 0;
     }
 }
 
@@ -49,10 +50,10 @@ Tensor<double> &ReLU::forward(Tensor<double> &input) {
 }
 
 void ReLU::backprop() {
-    backprop_cuda<<<this->input_dims[0], 32>>>(this->d_in, this->d_out, this->input_size);
+    backprop_cuda<<<this->input_dims[0], 32>>>(this->d_in, this->d_out, this->input_dims[1]);
 }
 
-__global__ void backprop_cuda(double* d_in, double* d_out, int input_size) {
+__global__ void backprop_cuda(double* d_in, double* d_out, int input_dims_1) {
 
     // blockDim = 32
     // gridDim = batch_size
@@ -61,8 +62,8 @@ __global__ void backprop_cuda(double* d_in, double* d_out, int input_size) {
     // int diff_tx = blockDim.x; // # 32
     int bx = blockIdx.x;    // no. of batch
 
-    for(int i = tx; i<input_size; i+=32) {
-        d_in[bx * input_size + tx] = (d_out[bx * input_size + tx]>0) ? d_out[bx * input_size + tx]>0 : 0;
+    for(int i = tx; i<input_dims_1; i+=32) {
+        d_in[bx * input_dims_1 + tx] = (d_out[bx * input_dims_1 + tx]>0) ? d_out[bx * input_dims_1 + tx]>0 : 0;
     }
 }
 

@@ -20,7 +20,7 @@ add_executable(neural_net_in_cpp
     src/NetworkModel.cu 
     src/MNISTDataLoader.cpp 
     src/Tensor.cpp 
-    src/FullyConnected.cpp 
+    src/FullyConnected.cu
     src/Sigmoid.cpp 
     src/SoftmaxClassifier.cpp 
     src/Dropout.cpp 

@@ -1,7 +1,7 @@
 #include <iostream>
 #include "../include/NetworkModel.h"
 #include "../include/Module.h"
-#include "../include/FullyConnected.h"
+#include "../include/FullyConnected.cuh"
 #include "../include/Sigmoid.h"
 #include "../include/Dropout.h"
 #include "../include/SoftmaxClassifier.h"
