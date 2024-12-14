@@ -9,7 +9,7 @@
 #include "../include/ReLU.h"
 #include "../include/Tensor.h"
 #include "../include/Conv2d.cuh" // change from h to cuh
-#include "../include/MaxPool.h"
+#include "../include/MaxPool.cuh"
 #include "../include/LinearLRScheduler.h"
 
 using namespace std;

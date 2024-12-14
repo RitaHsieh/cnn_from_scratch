@@ -13,12 +13,12 @@ Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int stride, i
     bias.randn(generator, distribution, 0);
 
     // allocate memory for kernel
-    int kernel_size = kernels.dims[0] * kernels.dims[1] * kernels.dims[2] * kernels.dims[3];
+    size_t kernel_size = kernels.dims[0] * kernels.dims[1] * kernels.dims[2] * kernels.dims[3] * sizeof(double);
     cudaMalloc((void **) &d_kernel, kernel_size);
     cudaMemcpy(d_kernel, kernels.getData(), kernel_size, cudaMemcpyHostToDevice);
 
     // allocate memory for bias
-    int bias_size = bias.dims[0];
+    size_t bias_size = bias.dims[0] * sizeof(double);
     cudaMalloc((void **) &d_bias, bias_size);
     cudaMemcpy(d_bias, bias.getData(), bias_size, cudaMemcpyHostToDevice);
 
@@ -40,7 +40,7 @@ Conv2d::void setInputProps(int num_dims, int const *dims, int size) {
     output_dims[3] = ((input_dims[3] + 2 * padding - (kernels.dims[3] - 1) - 1) / stride) + 1;
     
     output_size = 1;
-    for(int i=0; i< 4; i++) {
+    for(int i=0; i< num_dims; i++) {
         output_size *= output_dims[i];
     }
 }
@@ -106,14 +106,6 @@ Tensor<double> &Conv2d::initOutputTensor() {
     product_ = product;
     return product_;
 }
-// Tensor<double> &Conv2d::forward(Tensor<double> &input) {
-//     input_ = input;
-//     product_ = input.convolve2d(kernels, stride, padding, bias);
-
-//     return product_;
-// }
-
-// TODO: add Conv2d::backpropCUDA() here, and kernel call for operation
 
 __global__ 
 void Conv2d_input_gradient_gpu(
@@ -218,9 +210,9 @@ double * Conv2d::backprop(double* d_chain_gradient, int learning_rate) {
     d_out = d_chain_gradient;
     double* d_input_temp, d_kernel_temp;
 
-    int kernel_size = kernels.dims[0] * kernels.dims[1] * kernels.dims[2] * kernels.dims[3];
+    size_t kernel_size = kernels.dims[0] * kernels.dims[1] * kernels.dims[2] * kernels.dims[3] * sizeof(double);
     cudaMalloc((void **) &d_kernel_temp, kernel_size);
-    cudaMalloc((void **) &d_input_temp, input_size);
+    cudaMalloc((void **) &d_input_temp, input_size * sizeof(double));
     
     cudaStream_t stream[2];
     cudaStreamCreate(&stream[1]);
