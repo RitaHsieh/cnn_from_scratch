@@ -50,6 +50,8 @@ public:
     T* getData();
     void setData(T* data);
 
+    int getSize() { return size_;};
+
     /*
      * Matrix multiplication
      */

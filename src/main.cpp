@@ -1,12 +1,12 @@
 #include <iostream>
 #include "../include/NetworkModel.h"
 #include "../include/Module.h"
-#include "../include/FullyConnected.h"
+#include "../include/FullyConnected.cuh"
 #include "../include/Sigmoid.h"
 #include "../include/Dropout.h"
 #include "../include/SoftmaxClassifier.h"
 #include "../include/MNISTDataLoader.h"
-#include "../include/ReLU.h"
+#include "../include/ReLU.cuh"
 #include "../include/Tensor.h"
 #include "../include/Conv2d.cuh" // change from h to cuh
 #include "../include/MaxPool.cuh"
