@@ -6,6 +6,97 @@
 #include "../include/FullyConnected.cuh"
 #include "../include/Tensor.h"
 
+__global__ void forward_cuda(
+    double* d_in, double* d_out, double* d_weights, double* d_bias, 
+    int input_dim, int d
+    ) {
+
+    // blockDim = (32, output_dim)
+    // gridDim = batch_size/32
+
+    // d_in: {batch_size, input_dim}
+    // d_weights: {input_dim, output_dim}
+    // d_bias: {output_dim}
+    // d_out: {batch_size, output_dim}
+
+    // no. of batch = bx * 32 + tx;
+    int tx = threadIdx.x;
+    int ty = threadIdx.y;
+    int bx = blockIdx.x;
+
+    double value = 0;
+    // based on whethere an strict on batch_size
+    // if(bx*32+tx > input_dim) {
+    //     break;
+    // }
+    int block_offset = (bx*32+tx)*d;
+    for(int k = 0; k < d; k++) {
+        value += d_in[block_offset + k] * d_weights[k*d + ty];
+    }
+    d_out[(bx*32+tx)*blockDim.y + ty] = value + d_bias[ty];
+}
+
+__global__ void backprop_cuda_input(
+    double* d_in_new, double* d_out, double* d_weights,
+    double learning_rate, int b, int input_dims_1, int output_dims_1) {
+    // i: input_dims[0]=output_dims[0](batch_size), k: input_dims[1], j:output_dims[1] 
+    // blockDim = (32, 32)
+    // gridDim = (ceil(i/32), ceil(k/32))
+
+    int tx = threadIdx.x;
+    int ty = threadIdx.y;
+    int bx = blockIdx.x;
+    int by = blockIdx.y;
+
+    int i = bx * 32 + tx; 
+    int k = by * 32 + ty;
+
+    if(i>=b || k>=input_dims_1) {
+        return;
+    }
+
+    double inputGradient = 0;
+    for(int j = 0; j<output_dims_1; i++) {
+        inputGradient += d_out[i*output_dims_1 + j] * d_weights[k*output_dims_1 + j];
+    }
+    d_in_new[i*input_dims_1 + k] -=  learning_rate * inputGradient;
+}
+
+__global__ void backprop_cuda_weights_and_bias(
+    double* d_in, double* d_out, double* d_weights, double* d_weights_new, double* d_bias,
+    double learning_rate, int input_dims_1, int d, int output_dims_1) {
+    // i: input_dims[0]=output_dims[0](batch_size), k: input_dims[1], j:output_dims[1] 
+    // blockDim = (32, 32)
+    // gridDim = (ceil(k/32), ceil(j/32))
+
+    int tx = threadIdx.x;
+    int ty = threadIdx.y;
+    int bx = blockIdx.x;
+    int by = blockIdx.y;
+
+    //extern __shared__ double sram[];
+    //double* weightGradient = &sram;
+
+    int k = bx * 32 + tx;  
+    int j = by * 32 + ty;
+    if(k>=input_dims_1 || j>=output_dims_1) {
+        return;
+    }
+
+    double weightGradient = 0;
+    double biasGradient = 0;
+    for(int i = 0; i<d; i++) {
+        if(k==0) {
+            biasGradient += d_out[i*output_dims_1*j];
+        }
+        weightGradient += d_in[i*input_dims_1 + k] * d_out[i*output_dims_1*j];
+    }
+    d_weights_new[k*output_dims_1 + j] -= learning_rate * weightGradient;
+    if(k==0) {
+        d_bias[j] -= learning_rate * biasGradient;
+    }
+}
+
 FullyConnected::FullyConnected(int input_size, int output_size, int seed) {
     std::default_random_engine generator(seed);
     std::normal_distribution<double> distribution(0.0, 1.0);
@@ -47,41 +138,11 @@ void FullyConnected::setInputProps(int num_dims, int const *dims, int size) {
 
 void FullyConnected::forward() {
     dim3 block(32, this->output_dims[1]);
-    forward_cuda<<<ceil(this->input_dims[0], 32), >>>(          \
+    int grid = (input_dims[0]+31)/32;
+    forward_cuda<<<grid, block>>>(          \
         this->d_in, this->d_out, this->d_weights, this->d_bias,  \
         this->input_dims[1], this->input_dims[0]);
 }
-
-__global__ void forward_cuda(
-    double* d_in, double* d_out, double* d_weights, double* d_bias, 
-    int input_dim, int d
-    ) {
-
-    // blockDim = (32, output_dim)
-    // gridDim = batch_size/32
-
-    // d_in: {batch_size, input_dim}
-    // d_weights: {input_dim, output_dim}
-    // d_bias: {output_dim}
-    // d_out: {batch_size, output_dim}
-
-    // no. of batch = bx * 32 + tx;
-    int tx = threadIdx.x;
-    int ty = threadIdx.y;
-    int bx = blockIdx.x;
-
-    double value = 0;
-    // based on whethere an strict on batch_size
-    // if(bx*32+tx > input_dim) {
-    //     break;
-    // }
-    int block_offset = (bx*32+tx)*d;
-    for(int k = 0; k < d; k++) {
-        value += d_in[block_offset + k] * d_weights[k*d + ty];
-    }
-    d_out[(bx*32+tx)*blockDim.y + ty] = value + d_bias[ty];
-}
-
 
 Tensor<double> &FullyConnected::forward(Tensor<double> &input) {
     input_num_dims = input.num_dims;
@@ -105,7 +166,7 @@ double* FullyConnected::backprop(double* d_ptr, double learning_rate) {
     this->d_out = d_ptr;
     double *d_in_new, *d_weights_new;
     cudaMalloc((void**)&d_in_new, this->input_size);
-    cudaMalloc((void**)&d_weights_new, this->weights->getSize());
+    cudaMalloc((void**)&d_weights_new, this->weights.getSize());
 
     cudaStream_t streams[2];
     cudaStreamCreate(&streams[0]);
@@ -116,11 +177,15 @@ double* FullyConnected::backprop(double* d_ptr, double learning_rate) {
     //int sram_size_biasGradient =  this->bias->getSize() * sizeof(double);
     //int sram_size_input = this->input_size * sizeof(double);
 
-    backprop_cuda_weights_and_bias<<<grid, block, 0, streams[0]>>>(
+    dim3 block(32, 32);
+    dim3 grid_weight((input_dims[1]-1)/32+1, (output_dims[1]-1)/32+1);
+    backprop_cuda_weights_and_bias<<<grid_weight, block, 0, streams[0]>>>(
         this->d_in, this->d_out, this->d_weights, d_weights_new, this->d_bias,
         learning_rate, this->input_dims[1], this->input_dims[0], this->output_dims[1]
     );
-    backprop_cuda_input<<<grid, block, 0, streams[1]>>>(
+
+    dim3 grid_input((input_dims[0]-1)/32+1, (input_dims[1]-1)/32+1);
+    backprop_cuda_input<<<grid_input, block, 0, streams[1]>>>(
         d_in_new, this->d_out, this->d_weights, 
         learning_rate, this->input_dims[0], this->input_dims[1], this->output_dims[1]
     );
@@ -138,67 +203,6 @@ double* FullyConnected::backprop(double* d_ptr, double learning_rate) {
     this->d_weights = d_weights_new;
 
     return this->d_in;
-}
-
-__global__ void backprop_cuda_weights_and_bias(
-    double* d_in, double* d_out, double* d_weights, double* d_weights_new, double* d_bias,
-    double learning_rate, int input_dims_1, int d, int output_dims_1) {
-    // i: input_dims[0]=output_dims[0](batch_size), k: input_dims[1], j:output_dims[1] 
-    // blockDim = (32, 32)
-    // gridDim = (ceil(k/32), ceil(j/32))
-
-    int tx = threadIdx.x;
-    int ty = threadIdx.y;
-    int bx = blockIdx.x;
-    int by = blockIdx.y;
-
-    //extern __shared__ double sram[];
-    //double* weightGradient = &sram;
-
-    int k = bx * 32 + tx;  
-    int j = by * 32 + ty;
-    if(k>=input_dims_1 || j>=output_dims_1) {
-        return;
-    }
-
-    double* weightGradient = 0;
-    double* biasGradient = 0;
-    for(int i = 0; i<d; i++) {
-        if(k==0) {
-            biasGradient += d_out[i*output_dims_1*j];
-        }
-        weightGradient += d_in[i*input_dims_1 + k] * d_out[i*output_dims_1*j];
-    }
-    d_weights_new[k*output_dims_1 + j] -= learning_rate * weightGradient;
-    if(k==0) {
-        d_bias[j] -= learning_rate * biasGradient;
-    }
-}
-
-__global__ void backprop_cuda_input(
-    double* d_in_new, double* d_out, double* d_weights,
-    double learning_rate, int b, int input_dims_1, int output_dims_1) {
-    // i: input_dims[0]=output_dims[0](batch_size), k: input_dims[1], j:output_dims[1] 
-    // blockDim = (32, 32)
-    // gridDim = (ceil(i/32), ceil(j/32))
-
-    int tx = threadIdx.x;
-    int ty = threadIdx.y;
-    int bx = blockIdx.x;
-    int by = blockIdx.y;
-
-    int i = bx * 32 + tx; 
-    int k = by * 32 + ty;
-
-    if(i>=b || k>=input_dims_1) {
-        return;
-    }
-
-    double* inputGradient = 0;
-    for(int j = 0; j<output_dims_1; i++) {
-        inputGradient += d_out[i*output_dims_1 + j] * d_weights[k*output_dims_1 + j];
-    }
-    d_in_new[i*input_dims_1 + k] -=  learning_rate * inputGradient;
 }
 
 Tensor<double> FullyConnected::backprop(Tensor<double> chainGradient, double learning_rate) {

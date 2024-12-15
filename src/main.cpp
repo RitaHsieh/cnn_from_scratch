@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sys/time.h>
 #include "../include/NetworkModel.h"
 #include "../include/Module.h"
 #include "../include/FullyConnected.cuh"
@@ -21,7 +22,16 @@ const int BATCH_SIZE = 32;
 const int IMAGE_HEIGHT = 28;
 const int IMAGE_WIDTH = 28;
 
+double getTimeStamp() {
+    struct timeval tv;
+    gettimeofday( &tv, NULL );
+    return (double) tv.tv_usec/1000000 + tv.tv_sec;
+}
+
 int main(int argc, char **argv) {
+    double start, end;
+    start = getTimeStamp();
+
     if (argc < 2) {
         throw runtime_error("Please provide the data directory path as an argument");
     }
@@ -88,7 +98,11 @@ int main(int argc, char **argv) {
     }
     printf("\n");
 
+    end = getTimeStamp();
+    printf("Total time: %.3f sec\n", end - start);
+
     printf("Accuracy: %.2f%% (%d/%d)\n", ((double) hits * 100) / total, hits, total);
 
+    // cout << start - end << endl;
     return 0;
 }

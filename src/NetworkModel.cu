@@ -62,14 +62,14 @@ double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
     return loss_and_cost_gradient.first;
 }
 
-void NetworkModel::forwardCUDA(Tensor<double> &x) {
-    cudaMemcpy(this->d_in, x->getData(), x->getSize()*sizeof(double), cudaMemcpyHostToDevice);
+Tensor<double> NetworkModel::forwardCUDA(Tensor<double> &x) {
+    cudaMemcpy(this->d_in, x.getData(), x.getSize()*sizeof(double), cudaMemcpyHostToDevice);
     for (auto &module : modules_) {
         module->forward();
     }
-    double* x = Tensor<double>(this->output_num_dims, output_dims);
-    cudaMemcpy(x.getData(), this->d_out, this->output_size * sizeof(double), cudaMemcpyDeviceToHost);
-    return output_layer_->predict(x);
+    Tensor<double> y = Tensor<double>(this->output_num_dims, output_dims);
+    cudaMemcpy(y.getData(), this->d_out, this->output_size * sizeof(double), cudaMemcpyDeviceToHost);
+    return output_layer_->predict(y);
 }
 
 // This will be the forwardCUDA for general version

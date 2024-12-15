@@ -22,6 +22,7 @@ make
 ```
 Run:
 ```sh
+srun -N1 -n1 --gres=gpu:1 ./neural_net_in_cpp
 ./neural_net_in_cpp data
 ```
 The training should take about a minute and achieve ~97% accuracy.

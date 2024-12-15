@@ -13,9 +13,9 @@ Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int stride, i
     bias.randn(generator, distribution, 0);
 
     // allocate memory for kernel
-    size_t kernel_size = kernels.dims[0] * kernels.dims[1] * kernels.dims[2] * kernels.dims[3] * sizeof(double);
-    cudaMalloc((void **) &d_kernel, kernel_size);
-    cudaMemcpy(d_kernel, kernels.getData(), kernel_size, cudaMemcpyHostToDevice);
+    size_t k_mem_size = kernels.dims[0] * kernels.dims[1] * kernels.dims[2] * kernels.dims[3] * sizeof(double);
+    cudaMalloc((void **) &d_kernel, k_mem_size);
+    cudaMemcpy(d_kernel, kernels.getData(), k_mem_size, cudaMemcpyHostToDevice);
 
     // allocate memory for bias
     size_t bias_size = bias.dims[0] * sizeof(double);
@@ -26,7 +26,7 @@ Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int stride, i
     this->padding = padding;
 }
 
-Conv2d::void setInputProps(int num_dims, int const *dims, int size) {
+void Conv2d::setInputProps(int num_dims, int const *dims, int size) {
     // set input_dims, output_dims, input_size, output_size
     for(int i=0; i<num_dims; i++) {
         input_dims[0] = dims[0];
@@ -60,7 +60,7 @@ void Conv2d_gpu(int stride, int padding, double* kernel, double* d_in, double* d
 
     int im_si = stride * k - padding; // height
     int im_sj = stride * l - padding; // width
-    double total = 0;
+    double total = 0.0;
     double a, b;
     for (int m = 0; m < k_inchannel; ++m) { // pra cada canal do filtro
         for (int n = 0; n < k_height; ++n) {
@@ -205,10 +205,10 @@ __global__ void Conv2d_kernel_gradient_gpu(
 }
 
 
-double * Conv2d::backprop(double* d_chain_gradient, int learning_rate) {
+double * Conv2d::backprop(double* d_chain_gradient, double learning_rate) {
     
     d_out = d_chain_gradient;
-    double* d_input_temp, d_kernel_temp;
+    double * d_input_temp, * d_kernel_temp;
 
     size_t kernel_size = kernels.dims[0] * kernels.dims[1] * kernels.dims[2] * kernels.dims[3] * sizeof(double);
     cudaMalloc((void **) &d_kernel_temp, kernel_size);
@@ -222,10 +222,10 @@ double * Conv2d::backprop(double* d_chain_gradient, int learning_rate) {
     dim3 numBlocks(input_dims[0], input_dims[1]);
     dim3 threadsPerBlock(input_dims[2], input_dims[3]);
     Conv2d_input_gradient_gpu<<<numBlocks, threadsPerBlock, 0, stream[0]>>>( \
-                d_out, d_kernel, d_in_temp \
+                d_out, d_kernel, d_input_temp, \
                 output_dims[0], output_dims[1], input_dims[1], \
                 output_dims[2], output_dims[3], input_dims[2], input_dims[3], \
-                kernel.dims[2], kernel.dims[3], \
+                kernels.dims[2], kernels.dims[3], \
                 padding, stride, learning_rate
             );
 
@@ -233,13 +233,13 @@ double * Conv2d::backprop(double* d_chain_gradient, int learning_rate) {
     // launch for kernel gradient 
     int smem_size = kernels.dims[0] * kernels.dims[1] * kernels.dims[2] * kernels.dims[3] + kernels.dims[0];
     
-    dim3 threadsPerBlock(kernel_dims[0]*kernel_dims[1], kernel_dims[2], kernel_dims[3]);
+    dim3 threadsPerBlock_kernel(kernels.dims[0]*kernels.dims[1], kernels.dims[2], kernels.dims[3]);
 
-    Conv2d_kernel_gradient_gpu<<<1, threadsPerBlock, smem_size, stream[1]>>>( \
-                d_out, d_in, d_kernel, d_bias, d_kernel_temp \
+    Conv2d_kernel_gradient_gpu<<<1, threadsPerBlock_kernel, smem_size, stream[1]>>>( \
+                d_out, d_in, d_kernel, d_bias, d_kernel_temp, \
                 output_dims[0], output_dims[1], input_dims[1], \
                 output_dims[2], output_dims[3], input_dims[2], input_dims[3], \
-                kernel.dims[2], kernel.dims[3], \
+                kernels.dims[2], kernels.dims[3], \
                 padding, stride, learning_rate, kernel_size
             );
 
@@ -252,10 +252,68 @@ double * Conv2d::backprop(double* d_chain_gradient, int learning_rate) {
     cudaFree(d_in);
     cudaFree(d_kernel);
 
-    d_in = d_in_temp;
+    d_in = d_input_temp;
     d_kernel = d_kernel_temp;
 
     return d_in;
+}
+
+Tensor<double> &Conv2d::forward(Tensor<double> &input) {
+    input_ = input;
+    
+    product_ = input.convolve2d(kernels, stride, padding, bias);
+
+    return product_;
+}
+
+// Tensor<double> &Conv2d::forward(Tensor<double> &input) {
+//     input_ = input;
+//     product_ = input.convolve2d(kernels, stride, padding, bias);
+
+//     return product_;
+// }
+
+// TODO: add Conv2d::backpropCUDA() here, and kernel call for operation
+Tensor<double> Conv2d::backprop(Tensor<double> chain_gradient, double learning_rate) {
+    Tensor<double> kernels_gradient(kernels.num_dims, kernels.dims);
+    Tensor<double> input_gradient(input_.num_dims, input_.dims);
+    Tensor<double> bias_gradient(1, bias.dims);
+    kernels_gradient.zero();
+    input_gradient.zero();
+    bias_gradient.zero();
+
+    // backprop convolution -- not using Tensor.convolve2d for efficiency
+    for (int i = 0; i < input_.dims[0]; ++i) { // for each batch img
+        for (int f = 0; f < kernels.dims[0]; f++) { // for each filter
+            int x = -padding;
+            for (int cx = 0; cx < chain_gradient.dims[2]; x += stride, cx++) { // for each x in the chain gradient
+                int y = -padding;
+                for (int cy = 0; cy < chain_gradient.dims[3]; y += stride, cy++) { // for each y in the chain gradient
+                    double chain_grad = chain_gradient.get(i, f, cx, cy);
+                    for (int fx = 0; fx < kernels.dims[2]; fx++) { // for each x in the filter
+                        int ix = x + fx; // input x
+                        if (ix >= 0 && ix < input_.dims[2]) {
+                            for (int fy = 0; fy < kernels.dims[3]; fy++) { // for each y in the filter
+                                int iy = y + fy; // input y
+                                if (iy >= 0 && iy < input_.dims[3]) {
+                                    for (int fc = 0; fc < kernels.dims[1]; fc++) { // for each channel in the filter
+                                        kernels_gradient.add(f, fc, fx, fy, input_.get(i, fc, ix, iy) * chain_grad);
+                                        input_gradient.add(i, fc, ix, iy, kernels.get(f, fc, fx, fy) * chain_grad);
+
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    bias_gradient.add(f, chain_grad);
+                }
+            }
+        }
+    }
+    kernels -= kernels_gradient * learning_rate;
+    bias -= bias_gradient * learning_rate;
+
+    return input_gradient;
 }
 
 void Conv2d::load(FILE *file_model) {
