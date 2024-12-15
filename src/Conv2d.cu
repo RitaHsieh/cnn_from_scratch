@@ -29,7 +29,7 @@ Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int stride, i
 void Conv2d::setInputProps(int num_dims, int const *dims, int size) {
     // set input_dims, output_dims, input_size, output_size
     for(int i=0; i<num_dims; i++) {
-        input_dims[0] = dims[0];
+        input_dims[i] = dims[i];
     }
 
     input_size = size;

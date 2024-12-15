@@ -117,6 +117,11 @@ public:
     Tensor<T> operator-=(Tensor<T> difference);
 
     /*
+     * Test whethere 2 tensor is equal or not 
+     */
+    bool operator==(Tensor<T> other);
+
+    /*
      * Calculates the mean across each row
      */
     Tensor<T> columnWiseSum();
