@@ -47,15 +47,17 @@ bool NetworkModel::init(int batch_size, int image_width, int image_height) {
 double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
     // Forward
     Tensor<double> output = forwardCUDA(x);
-
+    //cout << "after forwardCUDA" << endl;
     //Backprop
     pair<double, Tensor<double>> loss_and_cost_gradient = output_layer_->backprop(y);
     Tensor<double> chain_gradient = loss_and_cost_gradient.second;
     cudaMemcpy(this->d_out, chain_gradient.getData(), this->output_size * sizeof(double), cudaMemcpyHostToDevice);
     double* d_update_ptr = this->d_out;
     for (int i = (int) modules_.size() - 1; i >= 0; --i) {
+        cout << "it:" << iteration <<", backprop in no. " << i << " layer" << endl;
         d_update_ptr = modules_[i]->backprop(d_update_ptr, lr_scheduler_->learning_rate);
     }
+    //cout << "after backpropCUDA" << endl;
     ++iteration;
     lr_scheduler_->onIterationEnd(iteration);
     // Return loss

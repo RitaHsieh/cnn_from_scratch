@@ -39,7 +39,8 @@ int main(int argc, char **argv) {
     string data_path = argv[1];
 
     printf("Loading training set... ");
-    fflush(stdout);
+    // fflush(stdout);
+    // cout << "Load image from: " << data_path + "/train-images-idx3-ubyte" << endl;
     MNISTDataLoader train_loader(data_path + "/train-images-idx3-ubyte", data_path + "/train-labels-idx1-ubyte", BATCH_SIZE);
     printf("Loaded.\n");
 
@@ -59,10 +60,12 @@ int main(int argc, char **argv) {
         printf("Epoch %d\n", k + 1);
         for (int i = 0; i < num_train_batches; ++i) {
             pair<Tensor<double>, vector<int> > xy = train_loader.nextBatch();
+            // cout << "before trainStep" << endl;
             double loss = model.trainStep(xy.first, xy.second);
+            // cout << "after trainStep" << endl;
             if ((i + 1) % 10 == 0) {
                 printf("\rIteration %d/%d - Batch Loss: %.4lf", i + 1, num_train_batches, loss);
-                fflush(stdout);
+                // fflush(stdout);
             }
         }
         printf("\n");
@@ -71,7 +74,7 @@ int main(int argc, char **argv) {
     model.save("network.txt");
 
     printf("Loading testing set... ");
-    fflush(stdout);
+    // fflush(stdout);
     MNISTDataLoader test_loader(data_path + "/t10k-images-idx3-ubyte", data_path + "/t10k-labels-idx1-ubyte", BATCH_SIZE);
     printf("Loaded.\n");
 
@@ -85,7 +88,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < num_test_batches; ++i) {
         if ((i + 1) % 10 == 0 || i == (num_test_batches - 1)) {
             printf("\rIteration %d/%d", i + 1, num_test_batches);
-            fflush(stdout);
+            // fflush(stdout);
         }
         pair<Tensor<double>, vector<int> > xy = test_loader.nextBatch();
         vector<int> predictions = model.predict(xy.first);

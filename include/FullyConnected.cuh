@@ -19,11 +19,11 @@ private:
     Tensor<double> input_;
     Tensor<double> product_;
 
-    int input_dims[4];
-    int input_num_dims;
+    int input_dims[2];
+    int input_num_dims = 2;
     int input_size;
-    int output_dims[4];
-    int output_num_dims;
+    int output_dims[2];
+    int output_num_dims = 2;
     int output_size;
 
     double* d_weights;
