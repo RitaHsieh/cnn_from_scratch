@@ -310,6 +310,17 @@ Tensor<T> Tensor<T>::operator-=(Tensor<T> difference) {
 }
 
 template<typename T>
+bool Tensor<T>::operator==(Tensor<T> other) {
+    assert(size_ == other.size_);
+    for (int i = 0; i < size_; ++i) {
+        if(data_[i]!=other.data_[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+template<typename T>
 Tensor<T> Tensor<T>::columnWiseSum() {
     assert(num_dims == 2);
     int rows = dims[0], cols = dims[1];

@@ -44,6 +44,55 @@ bool NetworkModel::init(int batch_size, int image_width, int image_height) {
 }
 
 
+bool NetworkModel::initForTest(int batch_size, int image_width, int image_height, int layer_idx, int seed) {
+    int num_dims = 4;
+    int* dims = new int[4]{batch_size, 1, image_width, image_height};
+    int size = batch_size * 1 * image_width * image_height;
+    double* d_ptr;
+    cudaMalloc((void **)&d_ptr, size);
+    this->d_in = d_ptr;
+
+    int i = 0;
+    for(auto &layer: modules_) {
+        layer->setInputProps(num_dims, dims, size);
+        layer->setD_in(d_ptr);
+        if(i == layer_idx) {
+            // create a fake input
+            std::default_random_engine generator(seed);
+            std::normal_distribution<double> distribution(0.0, 1.0);
+            Tensor<double> input(num_dims, dims);
+            input.randn(generator, distribution, sqrt(2.0 / size));
+            // test cpu version
+            Tensor<double> output_cpu = layer->forward(input);
+            // test gpu version
+            //      alloc for output
+            num_dims = layer->getOutputNumDims();
+            dims = layer->getOutputDims();
+            size = layer->getOutputSize();
+            cudaMalloc((void **)&d_ptr, size);
+            layer->setD_out(d_ptr);
+            //      run CUDA ver.
+            Tensor<double> output_gpu(num_dims, dims);
+            layer->forward();
+            cudaMemcpy(output_gpu.getData(), d_ptr, size, cudaMemcpyDeviceToHost);
+            // compare results from cpu and gpu versions
+            return (output_cpu==output_gpu);
+        }
+        
+        num_dims = layer->getOutputNumDims();
+        dims = layer->getOutputDims();
+        size = layer->getOutputSize();
+        cudaMalloc((void **)&d_ptr, size);
+        layer->setD_out(d_ptr);
+    }
+    this->output_num_dims = num_dims;
+    this->output_dims = dims;
+    this->output_size = size;
+    this->d_out = d_ptr;
+
+    return true;
+}
+
 double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
     // Forward
     Tensor<double> output = forwardCUDA(x);
