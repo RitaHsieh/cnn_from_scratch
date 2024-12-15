@@ -96,6 +96,7 @@ void Conv2d::forward() {
                 output_dims[2], output_dims[3]
             );
 
+
 }
 
 Tensor<double> &Conv2d::initOutputTensor() {
