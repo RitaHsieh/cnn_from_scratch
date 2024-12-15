@@ -5,6 +5,7 @@
 #include "../include/NetworkModel.h"
 #include "../include/LRScheduler.h"
 #include "../include/Tensor.h"
+#include <omp.h>
 
 using namespace std;
 
@@ -47,6 +48,7 @@ std::vector<int> NetworkModel::predict(Tensor<double> &x) {
     for (int i = 0; i < output.dims[0]; ++i) {
         int argmax = -1;
         double max = -1;
+        #pragma omp parallel for num_threads(omp_get_max_threads()) reduction(max: max)
         for (int j = 0; j < output.dims[1]; ++j) {
             if (output.get(i, j) > max) {
                 max = output.get(i, j);

@@ -3,6 +3,7 @@
 //
 
 #include "../include/Conv2d.h"
+#include <omp.h>
 
 Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int stride, int padding, int seed) {
     std::default_random_engine generator(seed);
@@ -38,6 +39,7 @@ Tensor<double> Conv2d::backprop(Tensor<double> chain_gradient, double learning_r
     bias_gradient.zero();
 
     // backprop convolution -- not using Tensor.convolve2d for efficiency
+    #pragma omp parallel for collapse(2) num_threads(omp_get_max_threads()) shared(kernels_gradient, input_gradient, bias_gradient)
     for (int i = 0; i < input_.dims[0]; ++i) { // for each batch img
         for (int f = 0; f < kernels.dims[0]; f++) { // for each filter
             int x = -padding;
@@ -52,7 +54,9 @@ Tensor<double> Conv2d::backprop(Tensor<double> chain_gradient, double learning_r
                                 int iy = y + fy; // input y
                                 if (iy >= 0 && iy < input_.dims[3]) {
                                     for (int fc = 0; fc < kernels.dims[1]; fc++) { // for each channel in the filter
+                                        #pragma omp atomic 
                                         kernels_gradient.add(f, fc, fx, fy, input_.get(i, fc, ix, iy) * chain_grad);
+                                        #pragma omp atomic 
                                         input_gradient.add(i, fc, ix, iy, kernels.get(f, fc, fx, fy) * chain_grad);
 
                                     }
@@ -73,11 +77,16 @@ Tensor<double> Conv2d::backprop(Tensor<double> chain_gradient, double learning_r
 
 void Conv2d::load(FILE *file_model) {
     double value;
+    #pragma omp parallel for collapse(4) private(value) num_threads(omp_get_max_threads()) shared(kernels, bias)
     for (int i = 0; i < kernels.dims[0]; ++i) {
         for (int j = 0; j < kernels.dims[1]; ++j) {
             for (int k = 0; k < kernels.dims[2]; ++k) {
                 for (int l = 0; l < kernels.dims[3]; ++l) {
-                    int read = fscanf(file_model, "%lf", &value); // NOLINT(cert-err34-c)
+                    int read;
+                    #pragma omp critical 
+                    {
+                        read = fscanf(file_model, "%lf", &value); // NOLINT(cert-err34-c)
+                    }
                     if (read != 1) throw std::runtime_error("Invalid model file");
                     kernels.set(i, j, k, l, value);
                 }

@@ -11,15 +11,20 @@
 #include "../include/Conv2d.h"
 #include "../include/MaxPool.h"
 #include "../include/LinearLRScheduler.h"
+#include <time.h>
+
 
 using namespace std;
 
 /*
  * Train a neural network on the MNIST data set and evaluate its performance
  */
-BATCH_SIZE = 32;
+int BATCH_SIZE = 32;
 
 int main(int argc, char **argv) {
+    
+    clock_t start = clock();
+
     if (argc < 2) {
         throw runtime_error("Please provide the data directory path as an argument");
     }
@@ -86,6 +91,10 @@ int main(int argc, char **argv) {
     printf("\n");
 
     printf("Accuracy: %.2f%% (%d/%d)\n", ((double) hits * 100) / total, hits, total);
+
+    clock_t end = clock();
+    double time_spent = (double)(end - start) / CLOCKS_PER_SEC;
+    printf("Execution time: %.2f seconds\n", time_spent);
 
     return 0;
 }

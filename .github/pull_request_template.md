@@ -1,9 +1,10 @@
 ## Issue
 <!-- 此 PR 解決哪個 issue，填寫 issue 編號，此 PR merge 時就會自動 close 該 issue --> 
-Fixes #
+neo2
 
 ## Changes
 <!-- 條列此 PR 做了哪些更動 --> 
+maxpool conv2d
 
 ## Test
 <!-- 該如何測試此次修改（手動 or 自動測試） --> 
