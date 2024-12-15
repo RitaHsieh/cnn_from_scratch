@@ -61,7 +61,7 @@ template<typename T>
 Tensor<T>::Tensor(int num_dims, int const *dims) {
     assert(num_dims > 0 && num_dims <= 4);
     int size = 1;
-     #pragma omp parallel for
+     #pragma omp parallel for num_threads(omp_get_max_threads()) reduction(+:size)
     for (int i = 0; i < num_dims; ++i) {
         size *= dims[i];
         this->dims[i] = dims[i];
@@ -123,7 +123,7 @@ Tensor<T> Tensor<T>::matmul(Tensor<T> other) {
 
     int new_dims[] = {dims[0], other.dims[1]};
     Tensor<T> product(2, new_dims);
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for collapse(2) num_threads(omp_get_max_threads()) 
     for (int i = 0; i < this->dims[0]; ++i) {
         for (int j = 0; j < other.dims[1]; ++j) {
             T value = 0;
@@ -141,7 +141,7 @@ Tensor<T> Tensor<T>::matrixTranspose() {
     assert(num_dims == 2);
     int new_dims[] = {dims[1], dims[0]};
     Tensor<T> transpose(num_dims, new_dims);
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for collapse(2) num_threads(omp_get_max_threads()) 
     for (int i = 0; i < dims[0]; ++i) {
         for (int j = 0; j < dims[1]; ++j) {
             transpose.set(j, i, get(i, j));
@@ -155,7 +155,7 @@ Tensor<T> Tensor<T>::matrixTranspose() {
 template<typename T>
 Tensor<T> Tensor<T>::relu() {
     Tensor<T> result(num_dims, dims);
-     #pragma omp parallel for
+     #pragma omp parallel for num_threads(omp_get_max_threads()) 
     for (int i = 0; i < size_; ++i) {
         T x = data_[i];
         result.data_[i] = x > 0 ? x : 0;
@@ -172,7 +172,7 @@ T sigmoid(T x) {
 template<typename T>
 Tensor<T> Tensor<T>::sigmoid() {
     Tensor<T> result(num_dims, dims);
-     #pragma omp parallel for
+     #pragma omp parallel for num_threads(omp_get_max_threads()) 
     for (int i = 0; i < size_; ++i) {
         T x = data_[i];
         result.data_[i] = ::sigmoid(x);
@@ -189,7 +189,7 @@ T sigmoidPrime(T x) {
 template<typename T>
 Tensor<T> Tensor<T>::sigmoidPrime() {
     Tensor<T> result(num_dims, dims);
-     #pragma omp parallel for
+     #pragma omp parallel for num_threads(omp_get_max_threads()) 
     for (int i = 0; i < size_; ++i) {
         T x = data_[i];
         result.data_[i] = ::sigmoidPrime(x);
@@ -201,7 +201,7 @@ Tensor<T> Tensor<T>::sigmoidPrime() {
 template<typename T>
 T Tensor<T>::sum() {
     T total = 0;
-    #pragma omp parallel for reduction(+:total)
+    #pragma omp parallel for reduction(+:total) num_threads(omp_get_max_threads()) 
     for (int i = 0; i < size_; ++i) {
         total += data_[i];
     }
@@ -214,7 +214,7 @@ Tensor<T> Tensor<T>::softmax() {
     //Softmax with max trick to avoid overflows
     int rows = dims[0], cols = dims[1];
     Tensor<T> probabilities(2, dims);
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(omp_get_max_threads()) 
     for (int i = 0; i < rows; ++i) {
         T row_max = -1; // useless value so my IDE stops screaming at me, will always be replaced
         for (int j = 0; j < cols; ++j) {
@@ -241,7 +241,7 @@ Tensor<T> Tensor<T>::softmax() {
 template<typename T>
 Tensor<T> Tensor<T>::reluPrime() {
     Tensor<T> prime(num_dims, dims);
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(omp_get_max_threads()) 
     for (int i = 0; i < size_; ++i) {
         prime.data_[i] = data_[i] > 0 ? 1 : 0;
     }
@@ -253,7 +253,7 @@ Tensor<T> Tensor<T>::operator+(Tensor<T> &other) {
     if (other.num_dims == 1 && other.size_ == this->dims[1] && num_dims == 2) {
         // if other is a 1d tensor and this is a 2d tensor
         Tensor<T> sum(num_dims, dims);
-        #pragma omp parallel for collapse(2)
+        #pragma omp parallel for collapse(2) num_threads(omp_get_max_threads())     
         for (int k = 0; k < this->dims[0]; ++k) {
             for (int j = 0; j < this->dims[1]; ++j) {
                 sum.set(k, j, get(k, j) + other.get(j));
@@ -264,7 +264,7 @@ Tensor<T> Tensor<T>::operator+(Tensor<T> &other) {
         return sum;
     } else if (other.num_dims == num_dims && other.size_ == size_) {
         Tensor<T> sum(num_dims, dims);
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(omp_get_max_threads())  
         for (int i = 0; i < size_; ++i) {
             sum.data_[i] = data_[i] + other.data_[i];
         }
@@ -278,7 +278,7 @@ template<typename T>
 Tensor<T> Tensor<T>::operator*(Tensor<T> other) {
     assert(size_ == other.size_);
     Tensor<T> product(num_dims, dims);
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(omp_get_max_threads())  
     for (int i = 0; i < size_; ++i) {
         product.data_[i] = data_[i] * other.data_[i];
     }
@@ -288,7 +288,7 @@ Tensor<T> Tensor<T>::operator*(Tensor<T> other) {
 template<typename T>
 Tensor<T> Tensor<T>::operator*(T multiplier) {
     Tensor<T> product(num_dims, dims);
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(omp_get_max_threads()) 
     for (int i = 0; i < size_; ++i) {
         product.data_[i] = data_[i] * multiplier;
     }
@@ -298,7 +298,7 @@ Tensor<T> Tensor<T>::operator*(T multiplier) {
 template<typename T>
 Tensor<T> Tensor<T>::operator/(T divisor) {
     Tensor<T> quotient(num_dims, dims);
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(omp_get_max_threads())
     for (int i = 0; i < size_; ++i) {
         quotient.data_[i] = data_[i] / divisor;
     }
@@ -308,7 +308,7 @@ Tensor<T> Tensor<T>::operator/(T divisor) {
 template<typename T>
 Tensor<T> Tensor<T>::operator-=(Tensor<T> difference) {
     assert(size_ == difference.size_);
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(omp_get_max_threads())
     for (int i = 0; i < size_; ++i) {
         data_[i] = data_[i] - difference.data_[i];
     }
@@ -321,7 +321,7 @@ Tensor<T> Tensor<T>::columnWiseSum() {
     int rows = dims[0], cols = dims[1];
     int sum_dims[] = {cols};
     Tensor<T> sum(1, sum_dims);
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(omp_get_max_threads()) 
     for (int i = 0; i < cols; ++i) {
         T total = 0;
         for (int j = 0; j < rows; ++j) {
@@ -336,7 +336,7 @@ template<>
 void
 Tensor<double>::randn(std::default_random_engine generator, std::normal_distribution<double> distribution,
                       double multiplier) {
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(omp_get_max_threads())
     for (int i = 0; i < size_; ++i) {
         data_[i] = distribution(generator) * multiplier;
     }
@@ -399,7 +399,7 @@ Tensor<T> &Tensor<T>::operator=(const Tensor<T> &other) {
 
 template<typename T>
 void Tensor<T>::dropout(std::default_random_engine generator, std::uniform_real_distribution<> distribution, double p) {
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(omp_get_max_threads())
     for (int i = 0; i < size_; ++i) {
         data_[i] = (distribution(generator) < p) / p;
     }
@@ -413,7 +413,7 @@ Tensor<T> Tensor<T>::convolve2d(Tensor<T> kernels, int stride, int padding, Tens
     int h = ((dims[2] + 2 * padding - (kernels.dims[2] - 1) - 1) / stride) + 1;
     int result_dims[] = {dims[0], kernels.dims[0], h, w};
     Tensor<T> output(4, result_dims);
-    #pragma omp parallel for collapse(4)
+    #pragma omp parallel for collapse(4) num_threads(omp_get_max_threads()) 
     for (int i = 0; i < dims[0]; ++i) { // pra cada img do batch
         for (int j = 0; j < kernels.dims[0]; ++j) { // pra cada output volume
             for (int k = 0; k < h; ++k) { // pra cada k vertical no output volume

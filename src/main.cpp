@@ -13,6 +13,7 @@
 #include "../include/LinearLRScheduler.h"
 #include <time.h>
 
+
 using namespace std;
 
 /*
@@ -21,7 +22,7 @@ using namespace std;
 int BATCH_SIZE = 32;
 
 int main(int argc, char **argv) {
-
+    
     clock_t start = clock();
 
     if (argc < 2) {

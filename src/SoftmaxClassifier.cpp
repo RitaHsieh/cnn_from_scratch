@@ -21,7 +21,7 @@ std::pair<double, Tensor<double>> SoftmaxClassifier::backprop(std::vector<int> g
 
 Tensor<double> SoftmaxClassifier::crossEntropyPrime(Tensor<double> &output, std::vector<int> &y) {
     Tensor<double> prime = output;
-     #pragma omp parallel for
+     #pragma omp parallel for num_threads(omp_get_max_threads()) 
     for (int i = 0; i < y.size(); ++i) {
         prime.set(i, y[i], prime.get(i, y[i]) - 1);
     }
@@ -32,7 +32,7 @@ Tensor<double> SoftmaxClassifier::crossEntropyPrime(Tensor<double> &output, std:
 
 double SoftmaxClassifier::crossEntropy(Tensor<double> &y_hat, std::vector<int> &y) {
     double total = 0;
-     #pragma omp parallel for
+     #pragma omp parallel for num_threads(omp_get_max_threads()) reduction(+:total)
     for (int i = 0; i < y.size(); ++i) {
         double x = y_hat.get(i, y[i]);
         // Sets a minimum value to prevent division by zero (log(0))

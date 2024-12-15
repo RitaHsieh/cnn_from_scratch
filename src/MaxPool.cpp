@@ -17,7 +17,7 @@ Tensor<double> &MaxPool::forward(Tensor<double> &input) {
     output_ = Tensor<double>(4, dims);
     indexes = Tensor<int>(4, dims);
 
-    #pragma omp parallel for collapse(4)
+    #pragma omp parallel for collapse(4) num_threads(omp_get_max_threads()) 
     for (int i = 0; i < input.dims[0]; ++i) { // for each batch image
         for (int j = 0; j < input.dims[1]; ++j) { // for each image channel
             for (int k = 0; k < dims[2]; ++k) { // for each output y
@@ -50,7 +50,7 @@ Tensor<double> MaxPool::backprop(Tensor<double> chainGradient, double learning_r
     Tensor<double> input_gradient(input_.num_dims, input_.dims);
     input_gradient.zero();
 
-    #pragma omp parallel for collapse(4)
+    #pragma omp parallel for collapse(4) num_threads(omp_get_max_threads()) shared(chainGradient, input_gradient)
     for (int i = 0; i < input_.dims[0]; ++i) { // for each batch image
         for (int j = 0; j < input_.dims[1]; ++j) { // for each image channel
             for (int k = 0; k < output_.dims[2]; ++k) { // for each output y
