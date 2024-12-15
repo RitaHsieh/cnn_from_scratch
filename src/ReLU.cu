@@ -14,7 +14,7 @@ __global__ void forward_cuda(double* d_in, double* d_out, int input_dims_1) {
     int bx = blockIdx.x;    // no. of batch
 
     for(int i = tx; i<input_dims_1; i+=128) {
-        d_out[bx * input_dims_1 + tx] = (d_in[bx * input_dims_1 + tx]>0) ? d_in[bx * input_dims_1 + tx] : 0;
+        d_out[bx * input_dims_1 + i] = (d_in[bx * input_dims_1 + i]>0) ? d_in[bx * input_dims_1 + i] : 0;
         // d_out[bx * input_dims_1 + tx] = 1;
     }
 }
@@ -29,7 +29,7 @@ __global__ void backprop_cuda(double* d_in, double* d_out, int input_dims_1) {
     int bx = blockIdx.x;    // no. of batch
 
     for(int i = tx; i<input_dims_1; i+=32) {
-        d_in[bx * input_dims_1 + tx] = (d_out[bx * input_dims_1 + tx]>0) ? d_out[bx * input_dims_1 + tx]>0 : 0;
+        d_in[bx * input_dims_1 + i] = (d_out[bx * input_dims_1 + i]>0) ? d_out[bx * input_dims_1 + i] : 0;
     }
 }
 
@@ -45,6 +45,7 @@ void ReLU::setInputProps(int num_dims, int const *dims, int size) {
         input_dims[1] *= dims[i];
     }
     // set input_size
+    assert(size==input_dims[0]*input_dims[1]);
     input_size = size;
 
     // calculate output_dims
@@ -66,14 +67,14 @@ void ReLU::forward() {
         std::cerr << "RELU::forward::CUDA error: " << cudaGetErrorString(err) << std::endl;
     }
 
-    Tensor<double> output_gpu(output_num_dims, output_dims);
-    cudaMemcpy(output_gpu.getData(), this->d_out, output_size, cudaMemcpyDeviceToHost);
+    // Tensor<double> output_gpu(output_num_dims, output_dims);
+    // cudaMemcpy(output_gpu.getData(), this->d_out, output_size, cudaMemcpyDeviceToHost);
     if (err != cudaSuccess) {
         std::cerr << "RELU::forward::CUDA error: " << cudaGetErrorString(err) << std::endl;
     }
-    for(int i = 0; i<10; i++) {
-        std::cout << "test in relu:" << output_gpu.getData()[i] << std::endl;
-    }
+    // for(int i = 0; i<10; i++) {
+    //     std::cout << "test in relu:" << output_gpu.getData()[i] << std::endl;
+    // }
     
 }
 

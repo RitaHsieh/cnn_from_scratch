@@ -316,15 +316,15 @@ bool Tensor<T>::operator==(Tensor<T> other) {
         printf("self size:%d, other size:%d", size_, other.size_);
     }
     assert(size_ == other.size_);
+    bool flag = true;
     for (int i = 0; i < size_; ++i) {
         if(data_[i]!=other.data_[i]) {
-            std::cout << other.data_[i] << std::endl;
-            if(i >= 10) {
-                return false;
-            }
+            std::cout << "tensor::==, " << i << ": " << other.data_[i] << std::endl;
+            if(i > 300) return false;
+            flag = false;
         }
     }
-    return true;
+    return flag;
 }
 
 template<typename T>

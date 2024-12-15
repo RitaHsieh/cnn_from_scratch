@@ -62,7 +62,7 @@ bool NetworkModel::initForTest(int batch_size, int image_width, int image_height
 
     int i = 0;
     for(auto &layer: modules_) {
-        cout << "init layer: " << i << endl;
+        cout << "init layer: " << i << " with input size: " << size << endl;
         layer->setInputProps(num_dims, dims, size);
         layer->setD_in(d_ptr);
         
@@ -90,7 +90,7 @@ bool NetworkModel::initForTest(int batch_size, int image_width, int image_height
             // output_gpu = (double*)malloc(sizeof(double) * size);
             layer->forward();
             CHECK(cudaMemcpy(output_gpu.getData(), d_ptr, size* sizeof(double), cudaMemcpyDeviceToHost));
-            //cout << "test:" << output_gpu[0] << endl;
+            cout << "test:" << output_gpu.getData()[2] << endl;
             // compare results from cpu and gpu versions
             return (output_cpu==output_gpu);
             //return false;
