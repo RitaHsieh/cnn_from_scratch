@@ -46,57 +46,52 @@ void Conv2d::setInputProps(int num_dims, int const *dims, int size) {
 }
 
 __global__
-void Conv2d_gpu(int stride, int padding, double* kernel, double* d_in, double* d_out, double* bias,\
-                int k_outchannel, int k_inchannel, int k_height, int k_width, \
-                int batch_size, int depth, int height, int width, \
-                int out_height, int out_width) {
+void Conv2d_gpu(
+    int stride, int padding, \
+    double* d_kernel, \
+    double* d_in, double* d_out, \
+    double* d_bias,\
+    int N, int F, int C,\
+    int Hk, int Wk, int Hi, int Wi, int Ho, int Wo ) 
+{
     // Block indices
     int i = blockIdx.x; // batch index
     int j = blockIdx.y; // output volume index
     int k = threadIdx.x; // vertical index in the output volume
     int l = threadIdx.y; // horizontal index in the output volume
 
-    if (k >= out_height || l >= out_width) return;
-
     int im_si = stride * k - padding; // height
     int im_sj = stride * l - padding; // width
     double total = 0.0;
     double a, b;
-    for (int m = 0; m < k_inchannel; ++m) { // pra cada canal do filtro
-        for (int n = 0; n < k_height; ++n) {
-            for (int o = 0; o < k_width; ++o) {
+    for (int m = 0; m < C; ++m) { 
+        for (int n = 0; n < Hk; ++n) {
+            for (int o = 0; o < Wk; ++o) {
                 int x = im_si + n, y = im_sj + o;
-                if (x < 0 || x >= height || y < 0 || y >= width)
-                    continue; // se for regiao do padding, pula (soma 0)
-                // double a = get(i, m, x, y);
-                a = d_in[((i*batch_size + m)*depth + x) * height + y];
-                // double b = kernels.get(j, m, n, o);
-                b = kernel[((j*k_outchannel + m)*k_inchannel + n)*k_height + o];
+                if (x < 0 || x >= Hi || y < 0 || y >= Wi)
+                    continue; 
+                a = d_in[((i * C + m)*Hi + x) * Wi + y];
+                b = d_kernel[((j * C + m)*Hk + n) * Wk+ o];
                 total += a * b;
             }
         }
     }
-    d_out[((i * batch_size+ j)*k_outchannel + k)*out_height + l] = total;
+    total = total + d_bias[j];
+    d_out[((i * C+ j) * Ho + k) * Wo + l] = total;
 }
 
-// void setInputPointer(double *pt) {
-//     d_in = pt;
-// }
-// TODO: add &Conv2d::forwardCUDA() here, and kernel call for convolve2dCUDA
-// see: Tensor.cpp
-// 暫時把input留著，等backprop做完再拿掉
 void Conv2d::forward() {
-    
+    printf("in conv2d: output pointer: %p\n", (void*)d_out);
     dim3 numBlocks(output_dims[0], output_dims[1]);
     dim3 threadsPerBlock(output_dims[2], output_dims[3]);
     Conv2d_gpu<<<numBlocks, threadsPerBlock>>>( \
-                stride, padding, d_kernel, d_in, d_out, d_bias, 
-                kernels.dims[0], kernels.dims[1], kernels.dims[2], kernels.dims[3], \
-                input_dims[0], input_dims[1], input_dims[2], input_dims[3], \
-                output_dims[2], output_dims[3]
-            );
-
-
+        stride, padding, d_kernel, d_in, d_out, d_bias, \
+        input_dims[0], kernels.dims[0], input_dims[1], \
+        kernels.dims[2], kernels.dims[3], \
+        input_dims[2], input_dims[3], \
+        output_dims[2], output_dims[3]
+    );
+    printf("in conv2d: output pointer: %p\n", (void*)d_out);
 }
 
 Tensor<double> &Conv2d::initOutputTensor() {
