@@ -105,14 +105,19 @@ FullyConnected::FullyConnected(int input_size, int output_size, int seed) {
     weights.randn(generator, distribution, sqrt(2.0 / input_size));
 
     cudaMalloc((void **)&d_weights, weights.getSize()*sizeof(double));
-    cudaMemcpy(&d_weights, weights.getData(), weights.getSize()*sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_weights, weights.getData(), weights.getSize()*sizeof(double), cudaMemcpyHostToDevice);
 
     int bias_dims[] = {output_size};
     bias = Tensor<double>(1, bias_dims);
     bias.randn(generator, distribution, 0);
 
     cudaMalloc((void **)&d_bias, bias.getSize()*sizeof(double));
-    cudaMemcpy(&d_bias, bias.getData(), bias.getSize()*sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_bias, bias.getData(), bias.getSize()*sizeof(double), cudaMemcpyHostToDevice);
+
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::cerr << "FC::CUDA error: " << cudaGetErrorString(err) << std::endl;
+    }
 }
 
 void FullyConnected::setInputProps(int num_dims, int const *dims, int size) {

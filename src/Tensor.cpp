@@ -68,6 +68,7 @@ void Tensor<T>::view(int new_num_dims, int *new_dims) {
 
 template<typename T>
 Tensor<T>::Tensor(int num_dims, int const *dims) {
+    // std::cout << "num_dims: " << num_dims << std::endl;
     assert(num_dims > 0 && num_dims <= 4);
     int size = 1;
     for (int i = 0; i < num_dims; ++i) {
@@ -311,10 +312,16 @@ Tensor<T> Tensor<T>::operator-=(Tensor<T> difference) {
 
 template<typename T>
 bool Tensor<T>::operator==(Tensor<T> other) {
+    if(size_ != other.size_) {
+        printf("self size:%d, other size:%d", size_, other.size_);
+    }
     assert(size_ == other.size_);
     for (int i = 0; i < size_; ++i) {
         if(data_[i]!=other.data_[i]) {
-            return false;
+            std::cout << other.data_[i] << std::endl;
+            if(i >= 10) {
+                return false;
+            }
         }
     }
     return true;

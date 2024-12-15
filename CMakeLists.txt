@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10) # CUDA 需要至少 3.8，但最好用更高版本
-project(neural_net_in_cpp LANGUAGES CXX CUDA)
+project(neural_net_in_cpp_test LANGUAGES CXX CUDA)
 
 # 設定 C++ 標準
 set(CMAKE_CXX_STANDARD 11)
@@ -9,14 +9,14 @@ set(CMAKE_CUDA_STANDARD 11)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 # CUDA 編譯器架構（根據目標 GPU 修改）
-set(CMAKE_CUDA_ARCHITECTURES 75)  # 適用於 NVIDIA Turing 架構，75 = RTX 20 系列
+set(CMAKE_CUDA_ARCHITECTURES 61)  # 適用於 NVIDIA Turing 架構，75 = RTX 20 系列
 
 # 如果需要，可以取消註解此行來啟用性能分析
 # set (CMAKE_CXX_FLAGS "-pg")
 
 # 定義執行檔案目標，包括 C++ 和 CUDA 檔案
 add_executable(neural_net_in_cpp_test 
-    src/test.cpp 
+    src/test.cu
     src/NetworkModel.cu 
     src/MNISTDataLoader.cpp 
     src/Tensor.cpp 

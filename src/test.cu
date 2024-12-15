@@ -1,6 +1,6 @@
 #include <iostream>
 #include <sys/time.h>
-#include "../include/NetworkModel.h"
+#include "../include/NetworkModel.cuh"
 #include "../include/Module.h"
 #include "../include/FullyConnected.cuh"
 #include "../include/Sigmoid.h"
@@ -40,6 +40,15 @@ int main(int argc, char **argv) {
 
     vector<Module *> modules = {new Conv2d(1, 8, 3, 1, 0, seed), new MaxPool(2, 2), new ReLU(), new FullyConnected(1352, 30, seed), new ReLU(),
                                 new FullyConnected(30, 10, seed)};
+    
+    cudaError_t err1 = cudaGetLastError();
+    if (err1 != cudaSuccess) {
+        std::cerr << "CUDA error1: " << cudaGetErrorString(err1) << std::endl;
+    }
+    else {
+        std::cout << "module init successfully" << std::endl;
+    }
+    
     int num_modules = modules.size();
 
     auto lr_sched = new LinearLRScheduler(0.2, -0.000005);
@@ -50,6 +59,7 @@ int main(int argc, char **argv) {
     assert(layer_idx <= num_modules);
     // model.init(BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT);
     bool result = model.initForTest(BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT, layer_idx, seed);
+    // bool result = model.initForTest_backprop(BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT, layer_idx, seed);
     
     cout << "result: " << result << endl;
 

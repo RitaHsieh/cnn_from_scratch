@@ -22,6 +22,11 @@ Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int stride, i
     cudaMalloc((void **) &d_bias, bias_size);
     cudaMemcpy(d_bias, bias.getData(), bias_size, cudaMemcpyHostToDevice);
 
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::cerr << "Conv2d::CUDA error: " << cudaGetErrorString(err) << std::endl;
+    }
+
     this->stride = stride;
     this->padding = padding;
 }
