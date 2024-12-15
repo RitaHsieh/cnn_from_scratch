@@ -58,8 +58,8 @@ int main(int argc, char **argv) {
     int layer_idx = atoi(argv[1]);
     assert(layer_idx <= num_modules);
     // model.init(BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT);
-    bool result = model.initForTest(BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT, layer_idx, seed);
-    // bool result = model.initForTest_backprop(BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT, layer_idx, seed);
+    // bool result = model.initForTest(BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT, layer_idx, seed);
+    bool result = model.initForTest_backprop(BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT, layer_idx, seed);
     
     cout << "result: " << result << endl;
 
