@@ -96,9 +96,13 @@ void MaxPool_backward(
 
     double input_gradient = 0;
     int ho, wo, idx, idx_x, idx_y;
-    for(int hi = (k+1)-size; hi < k+size; hi += stride) {
+    int hStart = (k-(size-1)%stride) == 0 ?  k-(size-1) : ((k-(size-1)/stride) + 1) * stride;
+    int hEnd = (int)(k/stride)*stride;
+    int wStart = (l-(size-1)%stride) == 0 ?  l-(size-1) : ((l-(size-1)/stride) + 1) * stride;
+    int wEnd = (int)(l/stride)*stride;
+    for(int hi = hStart; hi < hEnd; hi += stride) {
         if(hi > 0 && hi < Hi) {
-            for (int wi = (l+1) - size; wi < l + size; l += stride) {
+            for (int wi = wStart; wi < wEnd; wi += stride) {
                 if (wi > 0 && wi < Wi) {
                     ho = hi / stride;
                     wo = wi / stride;
