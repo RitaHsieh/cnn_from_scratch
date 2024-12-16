@@ -8,7 +8,7 @@
 
 __global__ void forward_cuda(
     double* d_in, double* d_out, double* d_weights, double* d_bias, 
-    int input_dim, int d
+    int input_dim, int d, int output_dim
     ) {
 
     // blockDim = (32, output_dim)
@@ -26,14 +26,14 @@ __global__ void forward_cuda(
 
     double value = 0;
     // based on whethere an strict on batch_size
-    // if(bx*32+tx > input_dim) {
-    //     break;
-    // }
+    if(bx*32+tx > input_dim) {
+        return;
+    }
     int block_offset = (bx*32+tx)*d;
     for(int k = 0; k < d; k++) {
-        value += d_in[block_offset + k] * d_weights[k*d + ty];
+        value += d_in[block_offset + k] * d_weights[k*output_dim + ty];
     }
-    d_out[(bx*32+tx)*blockDim.y + ty] = value + d_bias[ty];
+    d_out[(bx*32+tx)*output_dim + ty] = value + d_bias[ty];
 }
 
 __global__ void backprop_cuda_input(
@@ -132,6 +132,7 @@ void FullyConnected::setInputProps(int num_dims, int const *dims, int size) {
 
     // set input_size
     input_size = size;
+    assert(input_size==input_dims[0]*input_dims[1]);
 
     // calculate output_dims
     output_dims[0] = dims[0];
@@ -143,10 +144,16 @@ void FullyConnected::setInputProps(int num_dims, int const *dims, int size) {
 
 void FullyConnected::forward() {
     dim3 block(32, this->output_dims[1]);
-    int grid = (input_dims[0]+31)/32;
+    int grid = ceil(input_dims[0]/32);
     forward_cuda<<<grid, block>>>(          \
         this->d_in, this->d_out, this->d_weights, this->d_bias,  \
-        this->input_dims[1], this->input_dims[0]);
+        this->input_dims[0], this->input_dims[1], this->output_dims[1] \
+    );
+
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::cerr << "FC::forward::CUDA error: " << cudaGetErrorString(err) << std::endl;
+    }
 }
 
 Tensor<double> &FullyConnected::forward(Tensor<double> &input) {

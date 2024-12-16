@@ -5,10 +5,13 @@ project(neural_net_in_cpp_test LANGUAGES CXX CUDA)
 set(CMAKE_CXX_STANDARD 11)
 
 # 設定 CUDA 標準（可選，根據需求選擇合適的標準）
+find_package(CUDA  REQUIRED)
+include_directories("${CUDA_INCLUDE_DIRS}")
+
 set(CMAKE_CUDA_STANDARD 11)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
-# CUDA 編譯器架構（根據目標 GPU 修改）
+# # CUDA 編譯器架構（根據目標 GPU 修改）
 set(CMAKE_CUDA_ARCHITECTURES 61)  # 適用於 NVIDIA Turing 架構，75 = RTX 20 系列
 
 # 如果需要，可以取消註解此行來啟用性能分析

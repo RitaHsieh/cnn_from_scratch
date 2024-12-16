@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     double start, end;
     start = getTimeStamp();
 
-    if (argc < 2) {
+    if (argc < 3) {
         throw runtime_error("Please provide the data directory path as an argument");
     }
 
@@ -54,12 +54,21 @@ int main(int argc, char **argv) {
     auto lr_sched = new LinearLRScheduler(0.2, -0.000005);
     NetworkModel model = NetworkModel(modules, new SoftmaxClassifier(), lr_sched);
     
-    // Test forwardCUDA
-    int layer_idx = atoi(argv[1]);
-    assert(layer_idx <= num_modules);
+    // Test 
+    int backprop = atoi(argv[1]);   // forward: 0, backprop: 1 
+    assert(backprop==0 || backprop==1);
+
+    int layer_idx = atoi(argv[2]);
+    assert(layer_idx < num_modules);
+
     // model.init(BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT);
-    // bool result = model.initForTest(BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT, layer_idx, seed);
-    bool result = model.initForTest_backprop(BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT, layer_idx, seed);
+    bool result = false;
+    if(backprop==0) {
+        result = model.initForTest(BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT, layer_idx, seed);
+    }
+    else{
+        result = model.initForTest_backprop(BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT, layer_idx, seed);
+    }
     
     cout << "result: " << result << endl;
 
