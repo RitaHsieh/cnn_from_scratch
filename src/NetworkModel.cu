@@ -128,6 +128,7 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
             Tensor<double> input(num_dims, dims);
             input.randn(generator, distribution, sqrt(2.0 / size));
             Tensor<double> output_cpu = layer->forward(input);
+            cout << "fake input[0]:" << input.getData()[0] << endl;
             CHECK(cudaMemcpy(d_ptr, input.getData(), size* sizeof(double), cudaMemcpyHostToDevice), 131);
 
             // alloc for output
@@ -139,21 +140,25 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
             layer->setD_out(d_ptr);
 
             // create a fake inputGradient
-            // std::default_random_engine generator(seed);
+            std::default_random_engine generator1(++seed);
             // std::normal_distribution<double> distribution(0.0, 1.0);
             Tensor<double> inputGradient(out_num_dims, out_dims);
-            inputGradient.randn(generator, distribution, sqrt(2.0 / out_size));
+            inputGradient.randn(generator1, distribution, sqrt(2.0 / out_size));
             CHECK(cudaMemcpy(d_ptr, inputGradient.getData(), out_size * sizeof(double), cudaMemcpyHostToDevice), 146);
-            
+            cout << "fake inputGradient[0]:" << inputGradient.getData()[0] << endl;
             // test cpu version
-            Tensor<double> outputGradient_cpu = layer->backprop(inputGradient, learning_rate);
+            
+            Tensor<double> outputGradient_cpu = layer->backprop((Tensor<double>)inputGradient, learning_rate);
+            cout << "Finish CPU version: result[0]:" << outputGradient_cpu.getData()[0] << endl;
             // test gpu version
             //      run CUDA ver.
             Tensor<double> outputGradient_gpu(num_dims, dims);
-            d_ptr = layer->backprop(d_ptr, learning_rate);
-            printf("Return from layer->backprop, d_ptr %p\n", d_ptr);
+            d_ptr = layer->backprop((double*)d_ptr, learning_rate);
             CHECK(cudaMemcpy(outputGradient_gpu.getData(), d_ptr, size * sizeof(double), cudaMemcpyDeviceToHost), 155);
-            printf("Finish copy data from device to host\n");
+            cout << "Finish GPU version: result[0]:" << outputGradient_gpu.getData()[0] << endl;
+            
+            // test bias & weight
+            
             // update
             num_dims = output_num_dims;
             dims = output_dims;
@@ -166,7 +171,7 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
         num_dims = layer->getOutputNumDims();
         dims = layer->getOutputDims();
         size = layer->getOutputSize();
-        cudaMalloc((void **)&d_ptr, size * sizeof(double));
+        CHECK(cudaMalloc((void **)&d_ptr, size * sizeof(double)), 169);
         layer->setD_out(d_ptr);
     }
     this->output_num_dims = num_dims;
