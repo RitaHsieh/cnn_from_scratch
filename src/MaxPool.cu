@@ -136,7 +136,6 @@ double * MaxPool::backprop(double* d_chain_gradient, double learning_rate) {
         std::cerr << "MaxPool::backprop::CUDA error: " << cudaGetErrorString(err) << std::endl;
     }
 
-    printf("Return from maxpooling backprop kernel call, din %p\n", d_in);
     return d_in;
 }
 

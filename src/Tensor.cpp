@@ -321,7 +321,8 @@ bool Tensor<T>::operator==(Tensor<T> other) {
     bool flag = true;
     for (int i = 0; i < size_; ++i) {
         // std::cout << i << ": " << other.data_[i] << std::endl;
-        if(abs(data_[i]-other.data_[i])>0.0000000001) {
+        // if(abs(data_[i]-other.data_[i])>0.00000000000000001) {
+        if(data_[i]!=other.data_[i]) {
             std::cout << "tensor::==, " << i << ": " << data_[i] << ", " << other.data_[i] << std::endl;
             if(i > 30) return false;
             flag = false;

@@ -216,8 +216,8 @@ double * Conv2d::backprop(double* d_chain_gradient, double learning_rate) {
     cudaMalloc((void **) &d_input_temp, input_size * sizeof(double));
     
     cudaStream_t stream[2];
+    cudaStreamCreate(&stream[0]);
     cudaStreamCreate(&stream[1]);
-    cudaStreamCreate(&stream[2]);
  
 
     dim3 numBlocks(input_dims[0], input_dims[1]);
@@ -255,6 +255,11 @@ double * Conv2d::backprop(double* d_chain_gradient, double learning_rate) {
 
     d_in = d_input_temp;
     d_kernel = d_kernel_temp;
+
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::cerr << "Conv2d::backprop::CUDA error: " << cudaGetErrorString(err) << std::endl;
+    }
 
     return d_in;
 }

@@ -144,7 +144,7 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
             // std::normal_distribution<double> distribution(0.0, 1.0);
             Tensor<double> inputGradient(out_num_dims, out_dims);
             inputGradient.randn(generator1, distribution, sqrt(2.0 / out_size));
-            CHECK(cudaMemcpy(d_ptr, inputGradient.getData(), out_size * sizeof(double), cudaMemcpyHostToDevice), 146);
+            CHECK(cudaMemcpy(d_ptr, inputGradient.getData(), out_size * sizeof(double), cudaMemcpyHostToDevice), 147);
             cout << "fake inputGradient[0]:" << inputGradient.getData()[0] << endl;
             // test cpu version
             
@@ -154,7 +154,7 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
             //      run CUDA ver.
             Tensor<double> outputGradient_gpu(num_dims, dims);
             d_ptr = layer->backprop((double*)d_ptr, learning_rate);
-            CHECK(cudaMemcpy(outputGradient_gpu.getData(), d_ptr, size * sizeof(double), cudaMemcpyDeviceToHost), 155);
+            CHECK(cudaMemcpy(outputGradient_gpu.getData(), d_ptr, size * sizeof(double), cudaMemcpyDeviceToHost), 157);
             cout << "Finish GPU version: result[0]:" << outputGradient_gpu.getData()[0] << endl;
             
             // test bias & weight
