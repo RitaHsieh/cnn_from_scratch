@@ -21,7 +21,7 @@ private:
     // double* d_weight;
     double* d_in;
     double* d_out;
-
+public:
     Tensor<double> input_;
     Tensor<double> product_;
 public:

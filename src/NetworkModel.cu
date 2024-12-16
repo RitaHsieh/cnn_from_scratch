@@ -2,13 +2,19 @@
 // Created by lucas on 10/04/19.
 //
 
-#include "../include/NetworkModel.h"
+#include "../include/NetworkModel.cuh"
 #include "../include/LRScheduler.h"
 #include "../include/Tensor.h"
 #include "../include/Module.h"
 #include "../include/Conv2d.cuh"
 
 using namespace std;
+
+void CHECK(cudaError_t err, int line=0) {
+    if(err != cudaSuccess) {
+        cout << line << ":cuda error: " << err << endl;
+    }
+}
 
 NetworkModel::NetworkModel(std::vector<Module *> &modules, OutputLayer *output_layer, LRScheduler* lr_scheduler) {
     modules_ = modules;
@@ -24,7 +30,7 @@ bool NetworkModel::init(int batch_size, int image_width, int image_height) {
     int* dims = new int[4]{batch_size, 1, image_width, image_height};
     int size = batch_size * 1 * image_width * image_height;
     double* d_ptr;
-    cudaMalloc((void **)&d_ptr, size);
+    cudaMalloc((void **)&d_ptr, size * sizeof(double));
     this->d_in = d_ptr;
     for(auto &layer: modules_) {
         layer->setInputProps(num_dims, dims, size);
@@ -32,7 +38,7 @@ bool NetworkModel::init(int batch_size, int image_width, int image_height) {
         num_dims = layer->getOutputNumDims();
         dims = layer->getOutputDims();
         size = layer->getOutputSize();
-        cudaMalloc((void **)&d_ptr, size);
+        cudaMalloc((void **)&d_ptr, size * sizeof(double));
         layer->setD_out(d_ptr);
     }
     this->output_num_dims = num_dims;
@@ -49,19 +55,24 @@ bool NetworkModel::initForTest(int batch_size, int image_width, int image_height
     int* dims = new int[4]{batch_size, 1, image_width, image_height};
     int size = batch_size * 1 * image_width * image_height;
     double* d_ptr;
-    cudaMalloc((void **)&d_ptr, size);
+    CHECK(cudaMalloc((void **)&d_ptr, size * sizeof(double)), 58);
+    
     this->d_in = d_ptr;
 
     int i = 0;
     for(auto &layer: modules_) {
+        cout << "init layer: " << i << " with input size: " << size << endl;
         layer->setInputProps(num_dims, dims, size);
         layer->setD_in(d_ptr);
-        if(i == layer_idx) {
+        
+        if(i++ == layer_idx) {
+            
             // create a fake input
             std::default_random_engine generator(seed);
             std::normal_distribution<double> distribution(0.0, 1.0);
             Tensor<double> input(num_dims, dims);
             input.randn(generator, distribution, sqrt(2.0 / size));
+            CHECK(cudaMemcpy(d_ptr, input.getData(), size* sizeof(double), cudaMemcpyHostToDevice), 75);
             // test cpu version
             Tensor<double> output_cpu = layer->forward(input);
             // test gpu version
@@ -69,12 +80,13 @@ bool NetworkModel::initForTest(int batch_size, int image_width, int image_height
             num_dims = layer->getOutputNumDims();
             dims = layer->getOutputDims();
             size = layer->getOutputSize();
-            cudaMalloc((void **)&d_ptr, size);
+            CHECK(cudaMalloc((void **)&d_ptr, size * sizeof(double)), 83);
             layer->setD_out(d_ptr);
             //      run CUDA ver.
             Tensor<double> output_gpu(num_dims, dims);
             layer->forward();
-            cudaMemcpy(output_gpu.getData(), d_ptr, size, cudaMemcpyDeviceToHost);
+            CHECK(cudaMemcpy(output_gpu.getData(), d_ptr, size* sizeof(double), cudaMemcpyDeviceToHost), 88);
+            cout << "test:" << output_gpu.getData()[2] << endl;
             // compare results from cpu and gpu versions
             return (output_cpu==output_gpu);
         }
@@ -82,7 +94,84 @@ bool NetworkModel::initForTest(int batch_size, int image_width, int image_height
         num_dims = layer->getOutputNumDims();
         dims = layer->getOutputDims();
         size = layer->getOutputSize();
-        cudaMalloc((void **)&d_ptr, size);
+        CHECK(cudaMalloc((void **)&d_ptr, size* sizeof(double)), 97);
+        layer->setD_out(d_ptr);
+    }
+    this->output_num_dims = num_dims;
+    this->output_dims = dims;
+    this->output_size = size;
+    this->d_out = d_ptr;
+
+    return true;
+}
+
+bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int image_height, int layer_idx, int seed) {
+    double learning_rate = 0.2;
+    
+    int num_dims = 4;
+    int* dims = new int[4]{batch_size, 1, image_width, image_height};
+    int size = batch_size * 1 * image_width * image_height;
+    double* d_ptr;
+    CHECK(cudaMalloc((void **)&d_ptr, size * sizeof(double)), 115);
+    this->d_in = d_ptr;
+
+    int i = 0;
+    for(auto &layer: modules_) {
+        cout << "init layer: " << i << " with input size: " << size << endl;
+        layer->setInputProps(num_dims, dims, size);
+        layer->setD_in(d_ptr);
+
+        if(i++ == layer_idx) {
+            // create a fake input
+            std::default_random_engine generator(seed);
+            std::normal_distribution<double> distribution(0.0, 1.0);
+            Tensor<double> input(num_dims, dims);
+            input.randn(generator, distribution, sqrt(2.0 / size));
+            Tensor<double> output_cpu = layer->forward(input);
+            cout << "fake input[0]:" << input.getData()[0] << endl;
+            CHECK(cudaMemcpy(d_ptr, input.getData(), size* sizeof(double), cudaMemcpyHostToDevice), 131);
+
+            // alloc for output
+            int out_num_dims = layer->getOutputNumDims();
+            cout << out_num_dims << endl;
+            int* out_dims = layer->getOutputDims();
+            int out_size = layer->getOutputSize();
+            CHECK(cudaMalloc((void **)&d_ptr, out_size * sizeof(double)), 138);
+            layer->setD_out(d_ptr);
+
+            // create a fake inputGradient
+            std::default_random_engine generator1(++seed);
+            // std::normal_distribution<double> distribution(0.0, 1.0);
+            Tensor<double> inputGradient(out_num_dims, out_dims);
+            inputGradient.randn(generator1, distribution, sqrt(2.0 / out_size));
+            CHECK(cudaMemcpy(d_ptr, inputGradient.getData(), out_size * sizeof(double), cudaMemcpyHostToDevice), 147);
+            cout << "fake inputGradient[0]:" << inputGradient.getData()[0] << endl;
+            // test cpu version
+            
+            Tensor<double> outputGradient_cpu = layer->backprop((Tensor<double>)inputGradient, learning_rate);
+            cout << "Finish CPU version: result[0]:" << outputGradient_cpu.getData()[0] << endl;
+            // test gpu version
+            //      run CUDA ver.
+            Tensor<double> outputGradient_gpu(num_dims, dims);
+            d_ptr = layer->backprop((double*)d_ptr, learning_rate);
+            CHECK(cudaMemcpy(outputGradient_gpu.getData(), d_ptr, size * sizeof(double), cudaMemcpyDeviceToHost), 157);
+            cout << "Finish GPU version: result[0]:" << outputGradient_gpu.getData()[0] << endl;
+            
+            // test bias & weight
+            
+            // update
+            num_dims = output_num_dims;
+            dims = output_dims;
+            size = output_size;
+            
+            // compare results from cpu and gpu versions
+            return (outputGradient_cpu==outputGradient_gpu);
+        }
+        
+        num_dims = layer->getOutputNumDims();
+        dims = layer->getOutputDims();
+        size = layer->getOutputSize();
+        CHECK(cudaMalloc((void **)&d_ptr, size * sizeof(double)), 169);
         layer->setD_out(d_ptr);
     }
     this->output_num_dims = num_dims;

@@ -34,6 +34,8 @@ public:
 
     bool initForTest(int batch_size, int image_width, int image_height, int layer_idx, int seed);
 
+    bool initForTest_backprop(int batch_size, int image_width, int image_height, int layer_idx, int seed);
+    
     double trainStep(Tensor<double> &x, std::vector<int> &y);
 
     Tensor<double> forward(Tensor<double> &x);

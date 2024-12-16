@@ -95,16 +95,17 @@ void MaxPool_backward(
     int l = threadIdx.y; // horizontal index in the input volume
 
     double input_gradient = 0;
+    int ho, wo, idx, idx_x, idx_y;
     for(int hi = (k+1)-size; hi < k+size; hi += stride) {
         if(hi > 0 && hi < Hi) {
             for (int wi = (l+1) - size; wi < l + size; l += stride) {
                 if (wi > 0 && wi < Wi) {
-                    int ho = hi / stride;
-                    int wo = wi / stride;
-                    
-                    int idx = d_indexes[((i * C + j) * Ho + ho )* Wo + wo];
-                    int idx_x = idx / size;
-                    int idx_y = idx % size;
+                    ho = hi / stride;
+                    wo = wi / stride;
+    
+                    idx = d_indexes[((i * C + j) * Ho + ho )* Wo + wo];
+                    idx_x = idx / size;
+                    idx_y = idx % size;
 
                     if(hi + idx_x == k and wi + idx_y == l) {
                         input_gradient = d_out[((i * C + j) * Ho + ho )* Wo + wo];
@@ -122,12 +123,19 @@ double * MaxPool::backprop(double* d_chain_gradient, double learning_rate) {
     dim3 numBlocks(input_dims[0], input_dims[1]);
     dim3 threadsPerBlock(input_dims[2], input_dims[3]);
     //     int size, int stride
+    printf("Start maxpool backprop\n");
     MaxPool_backward<<<numBlocks, threadsPerBlock>>>( \
                 d_out, d_in, d_indexes, \
                 input_dims[0], input_dims[1], \
                 output_dims[2], output_dims[3], input_dims[2], input_dims[3], \
                 size_, stride_ \
             );
+    
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::cerr << "MaxPool::backprop::CUDA error: " << cudaGetErrorString(err) << std::endl;
+    }
+
     return d_in;
 }
 

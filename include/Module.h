@@ -11,6 +11,8 @@
  * Interface to be used as a building block for models
  */
 class Module {
+public:
+    Tensor<double> input_;
 protected:
     bool isEval = false;
 public:
