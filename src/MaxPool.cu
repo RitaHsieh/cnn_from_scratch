@@ -176,7 +176,7 @@ double * MaxPool::backprop(double* d_chain_gradient, double learning_rate) {
 
     dim3 grid(input_dims[0], input_dims[1]);
     dim3 block(output_dims[2], output_dims[3]);
-    cudaMemset(this->d_indexes, 0, this->indexes.getSize());
+    cudaMemset(this->d_indexes, 0, this->indexes.getSize() * sizeof(int));
     backprop_cuda<<<grid, block>>>(
         this->d_out, this->d_in, this->d_indexes, \
         this->input_dims[0], this->input_dims[1], this->input_dims[2], this->input_dims[3],

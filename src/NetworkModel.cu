@@ -127,10 +127,10 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
             std::normal_distribution<double> distribution(0.0, 1.0);
             Tensor<double> input(num_dims, dims);
             input.randn(generator, distribution, sqrt(2.0 / size));
-            Tensor<double> output_cpu = layer->forward(input);
             cout << "fake input[0]:" << input.getData()[0] << endl;
+            Tensor<double> output_cpu = layer->forward(input);
             CHECK(cudaMemcpy(d_ptr, input.getData(), size* sizeof(double), cudaMemcpyHostToDevice), 131);
-
+            layer->forward();
             // alloc for output
             int out_num_dims = layer->getOutputNumDims();
             cout << out_num_dims << endl;
