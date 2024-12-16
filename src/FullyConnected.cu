@@ -56,11 +56,11 @@ __global__ void backprop_cuda_input(
         return;
     }
 
-    double inputGradient = 1;
+    double inputGradient = 0;
     for(int j = 0; j<output_dims_1; j++) {
         inputGradient += d_out[i*output_dims_1 + j] * d_weights[k*output_dims_1 + j];
     }
-    d_in_new[i*input_dims_1 + k] =  -learning_rate * inputGradient;
+    d_in_new[i*input_dims_1 + k] =  inputGradient;
 }
 
 __global__ void backprop_cuda_weights_and_bias(
