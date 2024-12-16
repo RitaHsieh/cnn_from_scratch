@@ -29,12 +29,12 @@ __global__ void forward_cuda(
     if(bx*32+tx > input_dim) {
         return;
     }
-    // int block_offset = (bx*32+tx)*d;
-    // for(int k = 0; k < d; k++) {
-    //     value += d_in[block_offset + k] * d_weights[k*output_dim + ty];
-    // }
-    // d_out[(bx*32+tx)*output_dim + ty] = value + d_bias[ty];
-    d_out[(bx*32+tx)*output_dim + ty] = 1;
+    int block_offset = (bx*32+tx)*d;
+    for(int k = 0; k < d; k++) {
+        value += d_in[block_offset + k] * d_weights[k*output_dim + ty];
+    }
+    d_out[(bx*32+tx)*output_dim + ty] = value + d_bias[ty];
+    // d_out[(bx*32+tx)*output_dim + ty] = 1;
 }
 
 __global__ void backprop_cuda_input(

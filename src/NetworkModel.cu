@@ -149,13 +149,13 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
             // test cpu version
             
             Tensor<double> outputGradient_cpu = layer->backprop((Tensor<double>)inputGradient, learning_rate);
-            cout << "Finish CPU version: result[0]:" << outputGradient_cpu.getData()[0] << endl;
+            cout << "Finish CPU version: result[0]:" << outputGradient_cpu.getData()[1] << endl;
             // test gpu version
             //      run CUDA ver.
             Tensor<double> outputGradient_gpu(num_dims, dims);
             d_ptr = layer->backprop((double*)d_ptr, learning_rate);
             CHECK(cudaMemcpy(outputGradient_gpu.getData(), d_ptr, size * sizeof(double), cudaMemcpyDeviceToHost), 157);
-            cout << "Finish GPU version: result[0]:" << outputGradient_gpu.getData()[0] << endl;
+            cout << "Finish GPU version: result[0]:" << outputGradient_gpu.getData()[1] << endl;
             
             // test bias & weight
             
