@@ -29,12 +29,12 @@ __global__ void forward_cuda(
     if(bx*32+tx > input_dim) {
         return;
     }
-    // int block_offset = (bx*32+tx)*d;
-    // for(int k = 0; k < d; k++) {
-    //     value += d_in[block_offset + k] * d_weights[k*output_dim + ty];
-    // }
-    // d_out[(bx*32+tx)*output_dim + ty] = value + d_bias[ty];
-    d_out[(bx*32+tx)*output_dim + ty] = 1;
+    int block_offset = (bx*32+tx)*d;
+    for(int k = 0; k < d; k++) {
+        value += d_in[block_offset + k] * d_weights[k*output_dim + ty];
+    }
+    d_out[(bx*32+tx)*output_dim + ty] = value + d_bias[ty];
+    // d_out[(bx*32+tx)*output_dim + ty] = 1;
 }
 
 __global__ void backprop_cuda_input(
@@ -56,11 +56,11 @@ __global__ void backprop_cuda_input(
         return;
     }
 
-    double inputGradient = 1;
+    double inputGradient = 0;
     for(int j = 0; j<output_dims_1; j++) {
         inputGradient += d_out[i*output_dims_1 + j] * d_weights[k*output_dims_1 + j];
     }
-    d_in_new[i*input_dims_1 + k] =  -learning_rate * inputGradient;
+    d_in_new[i*input_dims_1 + k] =  inputGradient;
 }
 
 __global__ void backprop_cuda_weights_and_bias(
@@ -175,7 +175,7 @@ Tensor<double> &FullyConnected::forward(Tensor<double> &input) {
     return product_;
 }
 
-double* FullyConnected::backprop(double* d_ptr, double learning_rate) {
+double* FullyConnected::backprop(double* d_ptr, double learning_rate, bool test) {
     this->d_out = d_ptr;
     double *d_in_new, *d_weights_new;
     cudaMalloc((void**)&d_in_new, this->input_size * sizeof(double));
@@ -223,15 +223,17 @@ double* FullyConnected::backprop(double* d_ptr, double learning_rate) {
     this->d_in = d_in_new;
     this->d_weights = d_weights_new;
 
-    Tensor<double> weights_gpu = this->weights;
-    weights_gpu.zero();
-    cudaMemcpy(weights_gpu.getData(), d_weights, weights_gpu.getSize() * sizeof(double), cudaMemcpyDeviceToHost);
-    std::cout << "test weights:" << (weights_gpu==this->weights) << std::endl;
-
-    Tensor<double> bias_gpu = this->bias;
-    bias_gpu.zero();
-    cudaMemcpy(bias_gpu.getData(), d_bias, bias_gpu.getSize() * sizeof(double), cudaMemcpyDeviceToHost);
-    std::cout << "test bias:" << (bias_gpu==this->bias) << std::endl;
+    if(test) {
+        Tensor<double> weights_gpu = this->weights;
+        weights_gpu.zero();
+        cudaMemcpy(weights_gpu.getData(), d_weights, weights_gpu.getSize() * sizeof(double), cudaMemcpyDeviceToHost);
+        std::cout << "test weights:" << (weights_gpu==this->weights) << std::endl;
+    
+        Tensor<double> bias_gpu = this->bias;
+        bias_gpu.zero();
+        cudaMemcpy(bias_gpu.getData(), d_bias, bias_gpu.getSize() * sizeof(double), cudaMemcpyDeviceToHost);
+        std::cout << "test bias:" << (bias_gpu==this->bias) << std::endl;
+    }
 
     return this->d_in;
 }

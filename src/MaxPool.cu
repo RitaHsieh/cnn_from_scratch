@@ -27,7 +27,7 @@ void MaxPool::setInputProps(int num_dims, int const *dims, int size) {
         output_size *= output_dims[i];
     }
 
-    cudaMalloc((void **) &d_indexes, output_size * sizeof(int));
+    cudaMalloc((void **)&d_indexes, output_size * sizeof(int));
 }
 
 __global__
@@ -76,7 +76,20 @@ void MaxPool::forward() {
                 input_dims[0], input_dims[1], \
                 output_dims[2], output_dims[3], input_dims[2], input_dims[3], \
                 size_, stride_ \
-            );
+    );
+
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::cerr << "MaxPool::forward::CUDA error: " << cudaGetErrorString(err) << std::endl;
+    }
+
+    //test indexes
+    // Tensor<int> indexes_gpu = this->indexes;
+    // indexes_gpu.zero();
+    // cudaMemcpy(indexes_gpu.getData(), d_indexes, indexes_gpu.getSize() * sizeof(int), cudaMemcpyDeviceToHost);
+    // std::cout << "test indexes: " << (indexes_gpu==this->indexes) << std::endl;
+
+    
 }
 
 __global__
@@ -111,7 +124,7 @@ void MaxPool_backward(
                     idx_x = idx / size;
                     idx_y = idx % size;
 
-                    if(hi + idx_x == k and wi + idx_y == l) {
+                    if((hi + idx_x) == k && (wi + idx_y) == l) {
                         input_gradient = d_out[((i * C + j) * Ho + ho )* Wo + wo];
                     }
                 }
@@ -122,25 +135,65 @@ void MaxPool_backward(
 
 }
 
-double * MaxPool::backprop(double* d_chain_gradient, double learning_rate) {
-    d_out = d_chain_gradient;
-    dim3 numBlocks(input_dims[0], input_dims[1]);
-    dim3 threadsPerBlock(input_dims[2], input_dims[3]);
+__global__  void backprop_cuda(
+    double* d_out, double* d_in, int* d_indexes, \
+    int input_dims0, int input_dims1, int input_dims2, int input_dims3,
+    int output_dims2, int output_dims3, \
+    int size, int stride
+) {
+    // gridDim: [input_dims0, input_dims1]
+    // blockDim: [output_dims2, output_dims3]
+
+    // d_in: [input_dims0, input_dims1, input_dims2, input_dims3]
+    // d_indexes & d_out: [output_dims0, output_dims1, output_dims2, output_dims3]
+
+    int i = blockIdx.x;
+    int j = blockIdx.y;
+    int k = threadIdx.x;
+    int l = threadIdx.y;
+
+    int index = d_indexes[((i*input_dims1+j)*output_dims2+k)*output_dims3+l];  // [i][j][k][l];
+    int m = index / size;
+    int n = index % size;
+    int input_y = k * stride + m;
+    int input_x = l * stride + n;
+    d_in[((i*input_dims1+j)*input_dims2+input_y)*input_dims3+input_x] = d_out[((i*input_dims1+j)*output_dims2+k)*output_dims3+l];
+    // d_in[i][j][input_y][input_x] = d_out[bx][by][tx][ty];
+}
+
+double * MaxPool::backprop(double* d_chain_gradient, double learning_rate, bool test) {
+    this->d_out = d_chain_gradient;
+    if(test) {
+        cudaMemcpy(d_indexes, this->indexes.getData(), this->indexes.getSize() * sizeof(int), cudaMemcpyHostToDevice);
+    }
+
+    // dim3 numBlocks(input_dims[0], input_dims[1]);
+    // dim3 threadsPerBlock(input_dims[2], input_dims[3]);
     //     int size, int stride
     printf("Start maxpool backprop\n");
-    MaxPool_backward<<<numBlocks, threadsPerBlock>>>( \
-                d_out, d_in, d_indexes, \
-                input_dims[0], input_dims[1], \
-                output_dims[2], output_dims[3], input_dims[2], input_dims[3], \
-                size_, stride_ \
-            );
+    // MaxPool_backward<<<numBlocks, threadsPerBlock>>>( \
+    //             d_out, d_in, d_indexes, \
+    //             input_dims[0], input_dims[1], \
+    //             output_dims[2], output_dims[3], input_dims[2], input_dims[3], \
+    //             size_, stride_ \
+    //         );
+
+    dim3 grid(input_dims[0], input_dims[1]);
+    dim3 block(output_dims[2], output_dims[3]);
+    // cudaMemset(this->d_indexes, 0, this->indexes.getSize() * sizeof(int));
+    backprop_cuda<<<grid, block>>>(
+        this->d_out, this->d_in, this->d_indexes, \
+        this->input_dims[0], this->input_dims[1], this->input_dims[2], this->input_dims[3],
+        this->output_dims[2], this->output_dims[3], \
+        this->size_, this->stride_
+    );
     
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
         std::cerr << "MaxPool::backprop::CUDA error: " << cudaGetErrorString(err) << std::endl;
     }
 
-    return d_in;
+    return this->d_in;
 }
 
 

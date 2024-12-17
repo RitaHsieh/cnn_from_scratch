@@ -85,7 +85,7 @@ Tensor<double> &ReLU::forward(Tensor<double> &input) {
     return product_;
 }
 
-double* ReLU::backprop(double* d_ptr, double learning_rate) {
+double* ReLU::backprop(double* d_ptr, double learning_rate, bool test) {
     this->d_out = d_ptr;
     backprop_cuda<<<this->input_dims[0], 32>>>(this->d_in, this->d_out, this->input_dims[1]);
     return this->d_in;
