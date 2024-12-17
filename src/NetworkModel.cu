@@ -191,7 +191,7 @@ double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
     cudaMemcpy(this->d_out, chain_gradient.getData(), this->output_size * sizeof(double), cudaMemcpyHostToDevice);
     double* d_update_ptr = this->d_out;
     for (int i = (int) modules_.size() - 1; i >= 0; --i) {
-        cout << "it:" << iteration <<", backprop in no. " << i << " layer" << endl;
+        // cout << "it:" << iteration <<", backprop in no. " << i << " layer" << endl;
         d_update_ptr = modules_[i]->backprop(d_update_ptr, lr_scheduler_->learning_rate, false);
     }
     //cout << "after backpropCUDA" << endl;

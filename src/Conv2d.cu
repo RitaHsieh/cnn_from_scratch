@@ -182,7 +182,6 @@ void backprop_cuda_kernel_bias(
 }
 
 void Conv2d::forward() {
-    printf("in conv2d: output pointer: %p\n", (void*)d_out);
     dim3 numBlocks(output_dims[0], output_dims[1]);
     dim3 threadsPerBlock(output_dims[2], output_dims[3]);
     Conv2d_gpu<<<numBlocks, threadsPerBlock>>>( \
@@ -192,7 +191,6 @@ void Conv2d::forward() {
         input_dims[2], input_dims[3], \
         output_dims[2], output_dims[3]
     );
-    printf("in conv2d: output pointer: %p\n", (void*)d_out);
 }
 
 Tensor<double> &Conv2d::initOutputTensor() {
@@ -343,17 +341,18 @@ double * Conv2d::backprop(double* d_chain_gradient, double learning_rate, bool t
         learning_rate
     );
 
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) {
-        std::cerr << "Conv2d::backprop::CUDA error: " << cudaGetErrorString(err) << std::endl;
+    if(test) {
+        cudaError_t err = cudaGetLastError();
+        if (err != cudaSuccess) {
+            std::cerr << "Conv2d::backprop::CUDA error: " << cudaGetErrorString(err) << std::endl;
+        }
+        else {
+            std::cout << "Conv2d::backprop::CUDA success!" << std::endl;
+        }
     }
-    else {
-        std::cout << "Conv2d::backprop::CUDA success!" << std::endl;
-    }
-
 
     cudaStreamSynchronize(stream[0]);
-    // cudaStreamSynchronize(stream[1]);
+    cudaStreamSynchronize(stream[1]);
 
     cudaStreamDestroy(stream[0]);
     cudaStreamDestroy(stream[1]);

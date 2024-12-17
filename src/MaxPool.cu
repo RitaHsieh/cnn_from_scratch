@@ -78,10 +78,10 @@ void MaxPool::forward() {
                 size_, stride_ \
     );
 
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) {
-        std::cerr << "MaxPool::forward::CUDA error: " << cudaGetErrorString(err) << std::endl;
-    }
+    // cudaError_t err = cudaGetLastError();
+    // if (err != cudaSuccess) {
+    //     std::cerr << "MaxPool::forward::CUDA error: " << cudaGetErrorString(err) << std::endl;
+    // }
 
     //test indexes
     // Tensor<int> indexes_gpu = this->indexes;
@@ -170,7 +170,6 @@ double * MaxPool::backprop(double* d_chain_gradient, double learning_rate, bool 
     // dim3 numBlocks(input_dims[0], input_dims[1]);
     // dim3 threadsPerBlock(input_dims[2], input_dims[3]);
     //     int size, int stride
-    printf("Start maxpool backprop\n");
     // MaxPool_backward<<<numBlocks, threadsPerBlock>>>( \
     //             d_out, d_in, d_indexes, \
     //             input_dims[0], input_dims[1], \
@@ -188,11 +187,12 @@ double * MaxPool::backprop(double* d_chain_gradient, double learning_rate, bool 
         this->size_, this->stride_
     );
     
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) {
-        std::cerr << "MaxPool::backprop::CUDA error: " << cudaGetErrorString(err) << std::endl;
+    if(test) {
+        cudaError_t err = cudaGetLastError();
+        if (err != cudaSuccess) {
+            std::cerr << "MaxPool::backprop::CUDA error: " << cudaGetErrorString(err) << std::endl;
+        }
     }
-
     return this->d_in;
 }
 

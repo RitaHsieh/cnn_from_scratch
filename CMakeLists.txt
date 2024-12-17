@@ -19,7 +19,7 @@ set(CMAKE_CUDA_ARCHITECTURES 61)  # 適用於 NVIDIA Turing 架構，75 = RTX 20
 
 # 定義執行檔案目標，包括 C++ 和 CUDA 檔案
 add_executable(neural_net_in_cpp_test 
-    src/test.cu
+    src/main.cu
     src/NetworkModel.cu 
     src/MNISTDataLoader.cpp 
     src/Tensor.cpp 

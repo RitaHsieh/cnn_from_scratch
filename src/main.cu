@@ -1,6 +1,6 @@
 #include <iostream>
 #include <sys/time.h>
-#include "../include/NetworkModel.h"
+#include "../include/NetworkModel.cuh"
 #include "../include/Module.h"
 #include "../include/FullyConnected.cuh"
 #include "../include/Sigmoid.h"
@@ -57,18 +57,18 @@ int main(int argc, char **argv) {
     // Train network
     int num_train_batches = train_loader.getNumBatches();
     for (int k = 0; k < epochs; ++k) {
-        printf("Epoch %d\n", k + 1);
+        // printf("Epoch %d\n", k + 1);
         for (int i = 0; i < num_train_batches; ++i) {
             pair<Tensor<double>, vector<int> > xy = train_loader.nextBatch();
             // cout << "before trainStep" << endl;
             double loss = model.trainStep(xy.first, xy.second);
             // cout << "after trainStep" << endl;
             if ((i + 1) % 10 == 0) {
-                printf("\rIteration %d/%d - Batch Loss: %.4lf", i + 1, num_train_batches, loss);
+                // printf("\rIteration %d/%d - Batch Loss: %.4lf", i + 1, num_train_batches, loss);
                 // fflush(stdout);
             }
         }
-        printf("\n");
+        // printf("\n");
     }
     // Save weights
     model.save("network.txt");

@@ -151,10 +151,10 @@ void FullyConnected::forward() {
         this->input_dims[0], this->input_dims[1], this->output_dims[1] \
     );
 
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) {
-        std::cerr << "FC::forward::CUDA error: " << cudaGetErrorString(err) << std::endl;
-    }
+    // cudaError_t err = cudaGetLastError();
+    // if (err != cudaSuccess) {
+    //     std::cerr << "FC::forward::CUDA error: " << cudaGetErrorString(err) << std::endl;
+    // }
 }
 
 Tensor<double> &FullyConnected::forward(Tensor<double> &input) {
@@ -206,12 +206,14 @@ double* FullyConnected::backprop(double* d_ptr, double learning_rate, bool test)
     cudaStreamSynchronize(streams[0]);
     cudaStreamSynchronize(streams[1]);
 
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) {
-        std::cerr << "FC::backprop::CUDA error: " << cudaGetErrorString(err) << std::endl;
-    }
-    else {
-        std::cout << "finish wait for stream" << std::endl;
+    if(test) {
+        cudaError_t err = cudaGetLastError();
+        if (err != cudaSuccess) {
+            std::cerr << "FC::backprop::CUDA error: " << cudaGetErrorString(err) << std::endl;
+        }
+        else {
+            std::cout << "finish wait for stream" << std::endl;
+        }
     }
 
     cudaStreamDestroy(streams[0]);

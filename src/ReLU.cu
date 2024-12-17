@@ -62,16 +62,14 @@ void ReLU::forward() {
     int grid = this->input_dims[0];
     forward_cuda<<<grid, 128>>>(this->d_in, this->d_out, this->input_dims[1]);
 
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) {
-        std::cerr << "RELU::forward::CUDA error: " << cudaGetErrorString(err) << std::endl;
-    }
+    // cudaError_t err = cudaGetLastError();
+    // if (err != cudaSuccess) {
+    //     std::cerr << "RELU::forward::CUDA error: " << cudaGetErrorString(err) << std::endl;
+    // }
 
+    // test
     // Tensor<double> output_gpu(output_num_dims, output_dims);
     // cudaMemcpy(output_gpu.getData(), this->d_out, output_size, cudaMemcpyDeviceToHost);
-    if (err != cudaSuccess) {
-        std::cerr << "RELU::forward::CUDA error: " << cudaGetErrorString(err) << std::endl;
-    }
     // for(int i = 0; i<10; i++) {
     //     std::cout << "test in relu:" << output_gpu.getData()[i] << std::endl;
     // }
