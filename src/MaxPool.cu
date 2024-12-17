@@ -84,10 +84,10 @@ void MaxPool::forward() {
     }
 
     //test indexes
-    Tensor<int> indexes_gpu = this->indexes;
-    indexes_gpu.zero();
-    cudaMemcpy(indexes_gpu.getData(), d_indexes, indexes_gpu.getSize() * sizeof(int), cudaMemcpyDeviceToHost);
-    std::cout << "test indexes: " << (indexes_gpu==this->indexes) << std::endl;
+    // Tensor<int> indexes_gpu = this->indexes;
+    // indexes_gpu.zero();
+    // cudaMemcpy(indexes_gpu.getData(), d_indexes, indexes_gpu.getSize() * sizeof(int), cudaMemcpyDeviceToHost);
+    // std::cout << "test indexes: " << (indexes_gpu==this->indexes) << std::endl;
 
     
 }
@@ -161,8 +161,12 @@ __global__  void backprop_cuda(
     // d_in[i][j][input_y][input_x] = d_out[bx][by][tx][ty];
 }
 
-double * MaxPool::backprop(double* d_chain_gradient, double learning_rate) {
+double * MaxPool::backprop(double* d_chain_gradient, double learning_rate, bool test) {
     this->d_out = d_chain_gradient;
+    if(test) {
+        cudaMemcpy(d_indexes, this->indexes.getData(), this->indexes.getSize() * sizeof(int), cudaMemcpyHostToDevice);
+    }
+
     // dim3 numBlocks(input_dims[0], input_dims[1]);
     // dim3 threadsPerBlock(input_dims[2], input_dims[3]);
     //     int size, int stride
@@ -176,7 +180,7 @@ double * MaxPool::backprop(double* d_chain_gradient, double learning_rate) {
 
     dim3 grid(input_dims[0], input_dims[1]);
     dim3 block(output_dims[2], output_dims[3]);
-    cudaMemset(this->d_indexes, 0, this->indexes.getSize() * sizeof(int));
+    // cudaMemset(this->d_indexes, 0, this->indexes.getSize() * sizeof(int));
     backprop_cuda<<<grid, block>>>(
         this->d_out, this->d_in, this->d_indexes, \
         this->input_dims[0], this->input_dims[1], this->input_dims[2], this->input_dims[3],

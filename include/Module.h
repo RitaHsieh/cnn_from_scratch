@@ -56,7 +56,7 @@ public:
         throw std::runtime_error("This method is not supported for this type.");
     }
     
-    virtual double * backprop(double * d_ptr, double learning_rate) {
+    virtual double * backprop(double * d_ptr, double learning_rate, bool test) {
         throw std::runtime_error("This method is not supported for this type.");
     }   
 

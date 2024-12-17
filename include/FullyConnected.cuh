@@ -42,7 +42,7 @@ public:
     void setD_out(double* d_ptr) override { d_out = d_ptr; };
     
     void forward() override;
-    double* backprop(double* d_ptr, double learning_rate) override;
+    double* backprop(double* d_ptr, double learning_rate, bool test) override;
 
     Tensor<double> &forward(Tensor<double> &input) override;
 

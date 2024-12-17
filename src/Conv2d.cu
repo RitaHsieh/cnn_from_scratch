@@ -82,7 +82,103 @@ void Conv2d_gpu(
         }
     }
     total = total + d_bias[j];
-    d_out[((i * C+ j) * Ho + k) * Wo + l] = total;
+    d_out[((i * F+ j) * Ho + k) * Wo + l] = total;
+}
+
+__global__
+void backprop_cuda_input(
+    int stride, int padding, \
+    double* d_out, double* d_kernel, double* d_input_temp, double* d_in, \
+    int N, int F, int C, \
+    int Hk, int Wk, int Hi, int Wi, int Ho, int Wo, \
+    double learning_rate ) 
+{
+    // Block indices
+    int i = blockIdx.x; // batch index
+    int j = blockIdx.y; // output volume index
+    int k = threadIdx.x; // vertical index in the output volume
+    int l = threadIdx.y; // horizontal index in the output volume
+
+    int im_si = stride * k - padding; // height -25~3
+    int im_sj = stride * l - padding; // width
+    double total = 0.0;
+    double a, b;
+    
+    for (int m = 0; m < F; ++m) { 
+        for (int n = 0; n < Ho; ++n) {
+            for (int o = 0; o < Wo; ++o) {
+                int x = im_si + n; // -25~0
+                int y = im_sj + o;
+                if (x < 0 || x >= Hk || y < 0 || y >= Wk)
+                    continue; 
+                // a = d_kernel[m][0][Hk-1-x][Wk-1-y];
+                a = d_kernel[((m * C)*Hk + Hk-1-x) * Wk + Wk-1-y];
+                // a = d_kernel[((m * C)*Hk + x) * Wk + y];
+
+                // b = d_out[i][m][n][o];
+                b = d_out[((i * F + m)*Ho + n) * Wo+ o];
+                
+                total += a * b;
+            }
+        }
+    }
+    // d_input_temp[((i * C+ j) * Hi + k) * Wi + l] = d_in[((i * C+ j) * Hi + k) * Wi + l] - learning_rate*total;
+    d_input_temp[((i * C+ j) * Hi + Hi-1-k) * Wi + Wi-1-l] = total;
+    // d_input_temp[i][j][Hi-1-k][Wi-1-l] = -learning_rate*total;
+}
+
+__global__
+void backprop_cuda_kernel_bias(
+    int stride, int padding, \
+    double* d_out, double* d_kernel, double* d_in, \
+    double* d_kernel_temp, double* d_bias, \
+    int N, int F, int C, \
+    int Hk, int Wk, int Hi, int Wi, int Ho, int Wo, \
+    double learning_rate ) 
+{
+    // Block indices
+    int i = blockIdx.x; // batch index
+    int j = blockIdx.y; // output volume index
+    int k = threadIdx.x; // vertical index in the output volume
+    int l = threadIdx.y; // horizontal index in the output volume
+
+    int im_si = stride * k - padding; // height -25~3
+    int im_sj = stride * l - padding; // width
+    double kernelGradient = 0.0;
+    double biasGradient = 0.0;
+    double a, b;
+    
+    for (int m = 0; m < N; ++m) { 
+        for (int n = 0; n < Ho; ++n) {
+            for (int o = 0; o < Wo; ++o) {
+                int x = im_si + n; // -25~0
+                int y = im_sj + o;
+                if (x < 0 || x >= Hi || y < 0 || y >= Wi)
+                    continue; 
+                
+                // a = d_in[m][0][x][y];
+                a = d_in[((m * C)*Hi + x) * Wi + y];
+                // a = d_kernel[m][0][Hk-1-x][Wk-1-y];
+                // a = d_kernel[((m * C)*Hk + Hk-1-x) * Wk + Wk-1-y];
+
+                // b = d_out[m][i][n][o];
+                b = d_out[((m * F+i)*Ho + n) * Wo + o];
+                // b = d_out[i][m][n][o];
+                // b = d_out[((i * F + m)*Ho + n) * Wo+ o];
+                
+                kernelGradient += a * b;
+                biasGradient += b;
+            }
+        }
+    }
+
+    // d_kernel_temp[i][j][k][l] = d_kernel[i][j][k][l] - learning_rate*total;
+    d_kernel_temp[(((i * C)+j)*Hk + k) * Wk + l] = d_kernel[(((i * C)+j)*Hk + k) * Wk + l] - learning_rate*kernelGradient;
+    if(k==0 && l==0) {
+        d_bias[i] -= learning_rate * biasGradient;
+    }
+    // d_input_temp[((i * C+ j) * Hi + Hi-1-k) * Wi + Wi-1-l] = total;
+    // d_input_temp[i][j][Hi-1-k][Wi-1-l] = -learning_rate*total;
 }
 
 void Conv2d::forward() {
@@ -150,9 +246,9 @@ void Conv2d_input_gradient_gpu(
 
 extern __shared__ double shared_mem[];
 __global__ void Conv2d_kernel_gradient_gpu(
-    double* d_out, // Gradient of the output (N, F, Ho, Wo)
-    double* d_in,          // Input tensor (N, C, Hi, Wi)
-    double* d_kernel,      // Kernel gradient to be computed (F, C, Hk, Wk)
+    double* d_out,      // Gradient of the output (N, F, Ho, Wo)
+    double* d_in,       // Input tensor (N, C, Hi, Wi)
+    double* d_kernel,   // Kernel gradient to be computed (F, C, Hk, Wk)
     double* d_bias,
     double* d_kernel_temp,
     int N, int F, int C,          // Batch size, number of filters, channels
@@ -163,8 +259,8 @@ __global__ void Conv2d_kernel_gradient_gpu(
     int learning_rate,
     int kernel_size )      // Padding and stride
 {
-    int f = blockIdx.x / C;   // Filter index
-    int c = blockIdx.x % C;   // Channel index
+    int f = threadIdx.x / C;   // Filter index
+    int c = threadIdx.x % C;   // Channel index
     int p = threadIdx.y;  // Kernel height index
     int q = threadIdx.z;  // Kernel width index
 
@@ -206,7 +302,7 @@ __global__ void Conv2d_kernel_gradient_gpu(
 }
 
 
-double * Conv2d::backprop(double* d_chain_gradient, double learning_rate) {
+double * Conv2d::backprop(double* d_chain_gradient, double learning_rate, bool test) {
     
     d_out = d_chain_gradient;
     double * d_input_temp, * d_kernel_temp;
@@ -222,30 +318,42 @@ double * Conv2d::backprop(double* d_chain_gradient, double learning_rate) {
 
     dim3 numBlocks(input_dims[0], input_dims[1]);
     dim3 threadsPerBlock(input_dims[2], input_dims[3]);
-    Conv2d_input_gradient_gpu<<<numBlocks, threadsPerBlock, 0, stream[0]>>>( \
-                d_out, d_kernel, d_input_temp, \
-                output_dims[0], output_dims[1], input_dims[1], \
-                output_dims[2], output_dims[3], input_dims[2], input_dims[3], \
-                kernels.dims[2], kernels.dims[3], \
-                padding, stride, learning_rate
-            );
 
-    // dim3 numBlocks(output_dims[0], output_dims[1]);
-    // launch for kernel gradient 
-    int smem_size = kernels.dims[0] * kernels.dims[1] * kernels.dims[2] * kernels.dims[3] + kernels.dims[0];
+    backprop_cuda_input<<<numBlocks, threadsPerBlock, 0, stream[0]>>>(
+        1, output_dims[2]-1, 
+        this->d_out, this->d_kernel, d_input_temp, this->d_in,
+        input_dims[0], kernels.dims[0], kernels.dims[1],
+        kernels.dims[2], kernels.dims[3], \
+        input_dims[2], input_dims[3], \
+        output_dims[2], output_dims[3], \
+        learning_rate
+    );
     
-    dim3 threadsPerBlock_kernel(kernels.dims[0]*kernels.dims[1], kernels.dims[2], kernels.dims[3]);
+    dim3 grid(kernels.dims[0], kernels.dims[1]);
+    dim3 block(kernels.dims[2], kernels.dims[3]);
 
-    Conv2d_kernel_gradient_gpu<<<1, threadsPerBlock_kernel, smem_size, stream[1]>>>( \
-                d_out, d_in, d_kernel, d_bias, d_kernel_temp, \
-                output_dims[0], output_dims[1], input_dims[1], \
-                output_dims[2], output_dims[3], input_dims[2], input_dims[3], \
-                kernels.dims[2], kernels.dims[3], \
-                padding, stride, learning_rate, kernel_size
-            );
+    backprop_cuda_kernel_bias<<<grid, block, 0, stream[1]>>>(
+        1, 0, 
+        this->d_out, this->d_kernel, this->d_in, \
+        d_kernel_temp, this->d_bias, \
+        input_dims[0], kernels.dims[0], kernels.dims[1],
+        kernels.dims[2], kernels.dims[3], \
+        input_dims[2], input_dims[3], \
+        output_dims[2], output_dims[3], \
+        learning_rate
+    );
+
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::cerr << "Conv2d::backprop::CUDA error: " << cudaGetErrorString(err) << std::endl;
+    }
+    else {
+        std::cout << "Conv2d::backprop::CUDA success!" << std::endl;
+    }
+
 
     cudaStreamSynchronize(stream[0]);
-    cudaStreamSynchronize(stream[1]);
+    // cudaStreamSynchronize(stream[1]);
 
     cudaStreamDestroy(stream[0]);
     cudaStreamDestroy(stream[1]);
@@ -256,9 +364,16 @@ double * Conv2d::backprop(double* d_chain_gradient, double learning_rate) {
     d_in = d_input_temp;
     d_kernel = d_kernel_temp;
 
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) {
-        std::cerr << "Conv2d::backprop::CUDA error: " << cudaGetErrorString(err) << std::endl;
+    if(test) {
+        Tensor<double> kernels_gpu = this->kernels;
+        kernels_gpu.zero();
+        cudaMemcpy(kernels_gpu.getData(), d_kernel, kernels_gpu.getSize() * sizeof(double), cudaMemcpyDeviceToHost);
+        std::cout << "test kernels:" << (kernels_gpu==this->kernels) << std::endl;
+    
+        Tensor<double> bias_gpu = this->bias;
+        bias_gpu.zero();
+        cudaMemcpy(bias_gpu.getData(), d_bias, bias_gpu.getSize() * sizeof(double), cudaMemcpyDeviceToHost);
+        std::cout << "test bias:" << (bias_gpu==this->bias) << std::endl; 
     }
 
     return d_in;
@@ -291,17 +406,21 @@ Tensor<double> Conv2d::backprop(Tensor<double> chain_gradient, double learning_r
     // backprop convolution -- not using Tensor.convolve2d for efficiency
     for (int i = 0; i < input_.dims[0]; ++i) { // for each batch img
         for (int f = 0; f < kernels.dims[0]; f++) { // for each filter
+            
             int x = -padding;
             for (int cx = 0; cx < chain_gradient.dims[2]; x += stride, cx++) { // for each x in the chain gradient
                 int y = -padding;
                 for (int cy = 0; cy < chain_gradient.dims[3]; y += stride, cy++) { // for each y in the chain gradient
+                    
                     double chain_grad = chain_gradient.get(i, f, cx, cy);
                     for (int fx = 0; fx < kernels.dims[2]; fx++) { // for each x in the filter
                         int ix = x + fx; // input x
                         if (ix >= 0 && ix < input_.dims[2]) {
                             for (int fy = 0; fy < kernels.dims[3]; fy++) { // for each y in the filter
                                 int iy = y + fy; // input y
+                                
                                 if (iy >= 0 && iy < input_.dims[3]) {
+                                    
                                     for (int fc = 0; fc < kernels.dims[1]; fc++) { // for each channel in the filter
                                         kernels_gradient.add(f, fc, fx, fy, input_.get(i, fc, ix, iy) * chain_grad);
                                         input_gradient.add(i, fc, ix, iy, kernels.get(f, fc, fx, fy) * chain_grad);

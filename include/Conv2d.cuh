@@ -43,7 +43,7 @@ public:
 
     Tensor<double> backprop(Tensor<double> chain_gradient, double learning_rate) override;
     
-    double * backprop(double* d_ptr, double learning_rate) override;
+    double * backprop(double* d_ptr, double learning_rate, bool test) override;
 
     void load(FILE *file_model) override;
 

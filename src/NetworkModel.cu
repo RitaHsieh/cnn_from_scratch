@@ -86,7 +86,7 @@ bool NetworkModel::initForTest(int batch_size, int image_width, int image_height
             Tensor<double> output_gpu(num_dims, dims);
             layer->forward();
             CHECK(cudaMemcpy(output_gpu.getData(), d_ptr, size* sizeof(double), cudaMemcpyDeviceToHost), 88);
-            cout << "test:" << output_gpu.getData()[2] << endl;
+            // cout << "test:" << output_gpu.getData()[2] << endl;
             // compare results from cpu and gpu versions
             return (output_cpu==output_gpu);
         }
@@ -127,13 +127,12 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
             std::normal_distribution<double> distribution(0.0, 1.0);
             Tensor<double> input(num_dims, dims);
             input.randn(generator, distribution, sqrt(2.0 / size));
-            cout << "fake input[0]:" << input.getData()[0] << endl;
+            // cout << "fake input[0]:" << input.getData()[0] << endl;
             Tensor<double> output_cpu = layer->forward(input);
             CHECK(cudaMemcpy(d_ptr, input.getData(), size* sizeof(double), cudaMemcpyHostToDevice), 131);
             
             // alloc for output
             int out_num_dims = layer->getOutputNumDims();
-            cout << out_num_dims << endl;
             int* out_dims = layer->getOutputDims();
             int out_size = layer->getOutputSize();
             CHECK(cudaMalloc((void **)&d_ptr, out_size * sizeof(double)), 138);
@@ -145,7 +144,7 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
             Tensor<double> inputGradient(out_num_dims, out_dims);
             inputGradient.randn(generator1, distribution, sqrt(2.0 / out_size));
             CHECK(cudaMemcpy(d_ptr, inputGradient.getData(), out_size * sizeof(double), cudaMemcpyHostToDevice), 147);
-            cout << "fake inputGradient[0]:" << inputGradient.getData()[0] << endl;
+            // cout << "fake inputGradient[0]:" << inputGradient.getData()[0] << endl;
             // test cpu version
             
             Tensor<double> outputGradient_cpu = layer->backprop((Tensor<double>)inputGradient, learning_rate);
@@ -153,7 +152,7 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
             // test gpu version
             //      run CUDA ver.
             Tensor<double> outputGradient_gpu(num_dims, dims);
-            d_ptr = layer->backprop((double*)d_ptr, learning_rate);
+            d_ptr = layer->backprop((double*)d_ptr, learning_rate, true);
             CHECK(cudaMemcpy(outputGradient_gpu.getData(), d_ptr, size * sizeof(double), cudaMemcpyDeviceToHost), 157);
             cout << "Finish GPU version: result[0]:" << outputGradient_gpu.getData()[1] << endl;
             
@@ -193,7 +192,7 @@ double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
     double* d_update_ptr = this->d_out;
     for (int i = (int) modules_.size() - 1; i >= 0; --i) {
         cout << "it:" << iteration <<", backprop in no. " << i << " layer" << endl;
-        d_update_ptr = modules_[i]->backprop(d_update_ptr, lr_scheduler_->learning_rate);
+        d_update_ptr = modules_[i]->backprop(d_update_ptr, lr_scheduler_->learning_rate, false);
     }
     //cout << "after backpropCUDA" << endl;
     ++iteration;
