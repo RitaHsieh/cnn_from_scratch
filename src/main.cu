@@ -28,6 +28,13 @@ double getTimeStamp() {
     return (double) tv.tv_usec/1000000 + tv.tv_sec;
 }
 
+void get_last_error(int line) {
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::cerr << "Line:" << line << ", CUDA error: " << cudaGetErrorString(err) << std::endl;
+    }
+}
+
 int main(int argc, char **argv) {
     double start, end;
     start = getTimeStamp();
@@ -52,14 +59,18 @@ int main(int argc, char **argv) {
     // model.load("network.txt");
     model.init(BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT);
 
+    get_last_error(62);
+   
     int epochs = 1;
     printf("Training for %d epoch(s).\n", epochs);
     // Train network
     int num_train_batches = train_loader.getNumBatches();
+    printf("num_train_batches: %d\n", num_train_batches);
     for (int k = 0; k < epochs; ++k) {
-        // printf("Epoch %d\n", k + 1);
+        printf("Epoch %d\n", k + 1);
         for (int i = 0; i < num_train_batches; ++i) {
             pair<Tensor<double>, vector<int> > xy = train_loader.nextBatch();
+            // cout << "batch_size: " << xy.second.size() << endl;
             // cout << "before trainStep" << endl;
             double loss = model.trainStep(xy.first, xy.second);
             // cout << "after trainStep" << endl;
@@ -68,10 +79,12 @@ int main(int argc, char **argv) {
                 // fflush(stdout);
             }
         }
-        // printf("\n");
+        //printf("\n");
     }
     // Save weights
     model.save("network.txt");
+
+    get_last_error(85);
 
     printf("Loading testing set... ");
     // fflush(stdout);
@@ -85,9 +98,10 @@ int main(int argc, char **argv) {
     int total = 0;
     printf("Testing...\n");
     int num_test_batches = test_loader.getNumBatches();
+    printf("num_test_batches: %d\n", num_test_batches);
     for (int i = 0; i < num_test_batches; ++i) {
         if ((i + 1) % 10 == 0 || i == (num_test_batches - 1)) {
-            printf("\rIteration %d/%d", i + 1, num_test_batches);
+            // printf("\rIteration %d/%d", i + 1, num_test_batches);
             // fflush(stdout);
         }
         pair<Tensor<double>, vector<int> > xy = test_loader.nextBatch();

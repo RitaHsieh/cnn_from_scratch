@@ -1,10 +1,14 @@
 echo "Downloading MNIST data set..."
 mkdir data
 
-wget http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz
-wget http://yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz
-wget http://yann.lecun.com/exdb/mnist/t10k-images-idx3-ubyte.gz
-wget http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz
+# wget http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz
+# wget http://yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz
+# wget http://yann.lecun.com/exdb/mnist/t10k-images-idx3-ubyte.gz
+# wget http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz
+wget https://storage.googleapis.com/cvdf-datasets/mnist/train-images-idx3-ubyte.gz
+wget https://storage.googleapis.com/cvdf-datasets/mnist/train-labels-idx1-ubyte.gz
+wget https://storage.googleapis.com/cvdf-datasets/mnist/t10k-images-idx3-ubyte.gz
+wget https://storage.googleapis.com/cvdf-datasets/mnist/t10k-labels-idx1-ubyte.gz
 
 echo "Unpacking..."
 gunzip train-images-idx3-ubyte.gz && mv train-images-idx3-ubyte data/

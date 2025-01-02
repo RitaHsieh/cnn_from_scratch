@@ -212,7 +212,7 @@ double* FullyConnected::backprop(double* d_ptr, double learning_rate, bool test)
             std::cerr << "FC::backprop::CUDA error: " << cudaGetErrorString(err) << std::endl;
         }
         else {
-            std::cout << "finish wait for stream" << std::endl;
+            std::cout << "finish wait for cuda stream" << std::endl;
         }
     }
 

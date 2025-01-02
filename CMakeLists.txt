@@ -18,7 +18,7 @@ set(CMAKE_CUDA_ARCHITECTURES 61)  # 適用於 NVIDIA Turing 架構，75 = RTX 20
 # set (CMAKE_CXX_FLAGS "-pg")
 
 # 定義執行檔案目標，包括 C++ 和 CUDA 檔案
-add_executable(neural_net_in_cpp_test 
+add_executable(PP_final
     src/main.cu
     src/NetworkModel.cu 
     src/MNISTDataLoader.cpp 
@@ -33,8 +33,24 @@ add_executable(neural_net_in_cpp_test
     src/Conv2d.cu  # 添加 CUDA 檔案
 )
 
+add_executable(PP_final_valid
+    src/test.cu
+    src/NetworkModel.cu 
+    src/MNISTDataLoader.cpp 
+    src/Tensor.cpp 
+    src/FullyConnected.cu
+    src/Sigmoid.cpp 
+    src/SoftmaxClassifier.cpp 
+    src/Dropout.cpp 
+    src/ReLU.cu 
+    src/MaxPool.cu
+    src/LinearLRScheduler.cpp 
+    src/Conv2d.cu  # 添加 CUDA 檔案
+)
 # 包含 CUDA 頭文件目錄
-target_include_directories(neural_net_in_cpp_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(PP_final PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(PP_final_valid PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # 啟用 CUDA 可分離編譯（適合多檔案大型專案）
-set_target_properties(neural_net_in_cpp_test PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+set_target_properties(PP_final PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+set_target_properties(PP_final_valid PROPERTIES CUDA_SEPARABLE_COMPILATION ON)

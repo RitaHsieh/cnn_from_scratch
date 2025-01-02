@@ -90,7 +90,7 @@ double* ReLU::backprop(double* d_ptr, double learning_rate, bool test) {
 }
 
 Tensor<double> ReLU::backprop(Tensor<double> chainGradient, double learning_rate) {
-    std::cout << this->input_.num_dims << std::endl;
+    // std::cout << this->input_.num_dims << std::endl;
     return chainGradient * input_.reluPrime();
 }
 

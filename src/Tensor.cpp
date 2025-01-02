@@ -243,7 +243,6 @@ Tensor<T> Tensor<T>::softmax() {
 
 template<typename T>
 Tensor<T> Tensor<T>::reluPrime() {
-    std::cout << this->num_dims << std::endl;
     Tensor<T> prime(num_dims, dims);
     for (int i = 0; i < size_; ++i) {
         prime.data_[i] = data_[i] > 0 ? 1 : 0;
@@ -321,7 +320,7 @@ bool Tensor<T>::operator==(Tensor<T> other) {
     bool flag = true;
     for (int i = 0; i < size_; ++i) {
         // if(i<30)
-        //     std::cout << i << ": " << data_[i] << other.data_[i] << std::endl;
+        //     std::cout << i << ": " << data_[i] << ", " << other.data_[i] << std::endl;
         if(abs(data_[i]-other.data_[i])>0.00000000000000001) {
         // if(data_[i]!=other.data_[i]) {
             std::cout << "tensor::==, " << i << ": " << data_[i] << ", " << other.data_[i] << std::endl;

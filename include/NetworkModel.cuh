@@ -24,6 +24,7 @@ private:
     double* d_in;
     double* d_out;
 
+    int input_size;
     int output_num_dims;
     int* output_dims;
     int output_size;

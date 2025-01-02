@@ -29,17 +29,24 @@ bool NetworkModel::init(int batch_size, int image_width, int image_height) {
     int num_dims = 4;
     int* dims = new int[4]{batch_size, 1, image_width, image_height};
     int size = batch_size * 1 * image_width * image_height;
+    this->input_size = size;
     double* d_ptr;
-    cudaMalloc((void **)&d_ptr, size * sizeof(double));
+    CHECK(cudaMalloc((void **)&d_ptr, size * sizeof(double)), 33);
     this->d_in = d_ptr;
+    int i = 0;
     for(auto &layer: modules_) {
+        cout << "init layer: " << i << " with input size: " << size << endl;
+        // cout << this->d_in << endl;
+        // cout << d_ptr << endl;
+
         layer->setInputProps(num_dims, dims, size);
         layer->setD_in(d_ptr);
         num_dims = layer->getOutputNumDims();
         dims = layer->getOutputDims();
         size = layer->getOutputSize();
-        cudaMalloc((void **)&d_ptr, size * sizeof(double));
+        CHECK(cudaMalloc((void **)&d_ptr, size * sizeof(double)), 41);
         layer->setD_out(d_ptr);
+        i++;
     }
     this->output_num_dims = num_dims;
     this->output_dims = dims;
@@ -146,17 +153,18 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
             CHECK(cudaMemcpy(d_ptr, inputGradient.getData(), out_size * sizeof(double), cudaMemcpyHostToDevice), 147);
             // cout << "fake inputGradient[0]:" << inputGradient.getData()[0] << endl;
             // test cpu version
-            
             Tensor<double> outputGradient_cpu = layer->backprop((Tensor<double>)inputGradient, learning_rate);
-            cout << "Finish CPU version: result[0]:" << outputGradient_cpu.getData()[1] << endl;
+            // cout << "Finish CPU version: result[0]:" << outputGradient_cpu.getData()[1] << endl;
+            
             // test gpu version
             //      run CUDA ver.
             Tensor<double> outputGradient_gpu(num_dims, dims);
             d_ptr = layer->backprop((double*)d_ptr, learning_rate, true);
             CHECK(cudaMemcpy(outputGradient_gpu.getData(), d_ptr, size * sizeof(double), cudaMemcpyDeviceToHost), 157);
-            cout << "Finish GPU version: result[0]:" << outputGradient_gpu.getData()[1] << endl;
+            // cout << "Finish GPU version: result[0]:" << outputGradient_gpu.getData()[1] << endl;
             
             // test bias & weight
+            // -> test in each layer
             
             // update
             num_dims = output_num_dims;
@@ -202,12 +210,19 @@ double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
 }
 
 Tensor<double> NetworkModel::forwardCUDA(Tensor<double> &x) {
-    cudaMemcpy(this->d_in, x.getData(), x.getSize()*sizeof(double), cudaMemcpyHostToDevice);
+    if(x.getSize()!=25088) {
+        cout << "In forwardCUDA, " << x.getSize() << ", " << x.getData() << endl;
+    }
+    // cudaMemcpy(this->d_in, x.getData(), x.getSize()*sizeof(double), cudaMemcpyHostToDevice);
+    CHECK(cudaMemcpy(this->d_in, x.getData(), x.getSize() * sizeof(double), cudaMemcpyHostToDevice), 206);
     for (auto &module : modules_) {
         module->forward();
     }
     Tensor<double> y = Tensor<double>(this->output_num_dims, output_dims);
-    cudaMemcpy(y.getData(), this->d_out, this->output_size * sizeof(double), cudaMemcpyDeviceToHost);
+    // cudaMemcpy(y.getData(), this->d_out, this->output_size * sizeof(double), cudaMemcpyDeviceToHost);
+    // CHECK(cudaMemcpy(y.getData(), this->d_out, this->output_size * sizeof(double), cudaMemcpyDeviceToHost), 211);
+    // std::cout << y.getData()[0] << std::endl;
+    
     return output_layer_->predict(y);
 }
 
@@ -242,7 +257,7 @@ Tensor<double> NetworkModel::forward(Tensor<double> &x) {
 }
 
 std::vector<int> NetworkModel::predict(Tensor<double> &x) {
-    Tensor<double> output = forward(x);
+    Tensor<double> output = forwardCUDA(x);
     std::vector<int> predictions;
     for (int i = 0; i < output.dims[0]; ++i) {
         int argmax = -1;
