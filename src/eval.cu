@@ -66,8 +66,8 @@ int main(int argc, char **argv) {
 
     printf("Loading testing set... ");
     // fflush(stdout);
-    MNISTDataLoader test_loader(data_path + "/train-images-idx3-ubyte", data_path + "/train-labels-idx1-ubyte", BATCH_SIZE);
-    // MNISTDataLoader test_loader(data_path + "/t10k-images-idx3-ubyte", data_path + "/t10k-labels-idx1-ubyte", BATCH_SIZE);
+    // MNISTDataLoader test_loader(data_path + "/train-images-idx3-ubyte", data_path + "/train-labels-idx1-ubyte", BATCH_SIZE);
+    MNISTDataLoader test_loader(data_path + "/t10k-images-idx3-ubyte", data_path + "/t10k-labels-idx1-ubyte", BATCH_SIZE);
     printf("Loaded.\n");
 
     model.eval();
