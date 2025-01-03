@@ -29,6 +29,7 @@ bool NetworkModel::init(int batch_size, int image_width, int image_height) {
     int num_dims = 4;
     int* dims = new int[4]{batch_size, 1, image_width, image_height};
     int size = batch_size * 1 * image_width * image_height;
+
     this->input_size = size;
     double* d_ptr;
     CHECK(cudaMalloc((void **)&d_ptr, size * sizeof(double)), 33);
@@ -193,15 +194,17 @@ double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
     // Forward
     Tensor<double> output = forwardCUDA(x);
     //cout << "after forwardCUDA" << endl;
+    
     //Backprop
     pair<double, Tensor<double>> loss_and_cost_gradient = output_layer_->backprop(y);
     Tensor<double> chain_gradient = loss_and_cost_gradient.second;
-    cudaMemcpy(this->d_out, chain_gradient.getData(), this->output_size * sizeof(double), cudaMemcpyHostToDevice);
+    CHECK(cudaMemcpy(this->d_out, chain_gradient.getData(), chain_gradient.getSize() * sizeof(double), cudaMemcpyHostToDevice),200);
     double* d_update_ptr = this->d_out;
     for (int i = (int) modules_.size() - 1; i >= 0; --i) {
         // cout << "it:" << iteration <<", backprop in no. " << i << " layer" << endl;
         d_update_ptr = modules_[i]->backprop(d_update_ptr, lr_scheduler_->learning_rate, false);
     }
+    this->d_in = d_update_ptr;
     //cout << "after backpropCUDA" << endl;
     ++iteration;
     lr_scheduler_->onIterationEnd(iteration);
@@ -213,14 +216,19 @@ Tensor<double> NetworkModel::forwardCUDA(Tensor<double> &x) {
     if(x.getSize()!=25088) {
         cout << "In forwardCUDA, " << x.getSize() << ", " << x.getData() << endl;
     }
+
+    // cout << "d_in pointer: " << d_in << " d_out pointer: " << this->d_out << endl;
     // cudaMemcpy(this->d_in, x.getData(), x.getSize()*sizeof(double), cudaMemcpyHostToDevice);
     CHECK(cudaMemcpy(this->d_in, x.getData(), x.getSize() * sizeof(double), cudaMemcpyHostToDevice), 206);
+ // CHECK(cudaMemcpy(d_ptr, input.getData(), size* sizeof(double), cudaMemcpyHostToDevice), 131);
+    
     for (auto &module : modules_) {
         module->forward();
     }
-    Tensor<double> y = Tensor<double>(this->output_num_dims, output_dims);
+    Tensor<double> y = Tensor<double>(this->output_num_dims, this->output_dims);
+    // cout << "output size: " << this->output_size << " output num dims: " << this->output_num_dims << " output dims 0: "<< this->output_dims[0] <<endl;
     // cudaMemcpy(y.getData(), this->d_out, this->output_size * sizeof(double), cudaMemcpyDeviceToHost);
-    // CHECK(cudaMemcpy(y.getData(), this->d_out, this->output_size * sizeof(double), cudaMemcpyDeviceToHost), 211);
+    CHECK(cudaMemcpy(y.getData(), this->d_out, this->output_size * sizeof(double), cudaMemcpyDeviceToHost), 211);
     // std::cout << y.getData()[0] << std::endl;
     
     return output_layer_->predict(y);

@@ -220,7 +220,7 @@ double* FullyConnected::backprop(double* d_ptr, double learning_rate, bool test)
     cudaStreamDestroy(streams[1]);
 
     cudaFree(this->d_in);
-    cudaFree(this->d_out);
+    cudaFree(this->d_weights);
 
     this->d_in = d_in_new;
     this->d_weights = d_weights_new;

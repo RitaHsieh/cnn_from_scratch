@@ -27,11 +27,11 @@ cmake --build build --target clean
 Run:
 ```sh
 srun -N1 -n1 --gres=gpu:1 ./neural_net_in_cpp
-./neural_net_in_cpp data
+./build/PP_final data
 ```
 Run validation for each layer
 ```sh
-./build/neural_net_in_cpp_test [forward/backward] [layer idx]
+./build/PP_final_valid [forward/backward] [layer idx]
 ```
 result: 1 means correct!
 `layer idx` should be in [0:5]

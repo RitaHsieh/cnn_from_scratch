@@ -69,8 +69,9 @@ int main(int argc, char **argv) {
     for (int k = 0; k < epochs; ++k) {
         printf("Epoch %d\n", k + 1);
         for (int i = 0; i < num_train_batches; ++i) {
+            get_last_error(72);
             pair<Tensor<double>, vector<int> > xy = train_loader.nextBatch();
-            // cout << "batch_size: " << xy.second.size() << endl;
+            // cout << "iter: "<< i<<" batch_size: " << xy.second.size() << endl;
             // cout << "before trainStep" << endl;
             double loss = model.trainStep(xy.first, xy.second);
             // cout << "after trainStep" << endl;
@@ -79,7 +80,7 @@ int main(int argc, char **argv) {
                 // fflush(stdout);
             }
         }
-        //printf("\n");
+        // printf("\n");
     }
     // Save weights
     model.save("network.txt");
