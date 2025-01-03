@@ -24,10 +24,18 @@ Make clean the code:
 ```sh
 cmake --build build --target clean
 ```
+or only clean+make:
+```sh
+cmake --build build --target PP_final --clean-first
+```
 Run:
 ```sh
-srun -N1 -n1 --gres=gpu:1 ./neural_net_in_cpp
+srun -N1 -n1 --gres=gpu:1 ./build/PP_final
 ./build/PP_final data
+```
+Only run test model
+```sh
+./build/PP_final_eval data
 ```
 Run validation for each layer
 ```sh

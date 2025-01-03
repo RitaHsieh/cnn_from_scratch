@@ -460,6 +460,12 @@ void Conv2d::load(FILE *file_model) {
     }
 }
 
+void Conv2d::loadCUDA(FILE *file_model) {
+    load(file_model);
+    cudaMemcpy(this->d_kernel, this->kernels.getData(), this->kernels.getSize() * sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_bias, this->bias.getData(), this->bias.getSize() * sizeof(double), cudaMemcpyHostToDevice);
+}
+
 void Conv2d::save(FILE *file_model) {
     for (int i = 0; i < kernels.dims[0]; ++i) {
         for (int j = 0; j < kernels.dims[1]; ++j) {
@@ -473,4 +479,10 @@ void Conv2d::save(FILE *file_model) {
     for (int m = 0; m < bias.dims[0]; ++m) {
         fprintf(file_model, "%.18lf ", bias.get(m));
     }
+}
+
+void Conv2d::saveCUDA(FILE *file_model) {
+    cudaMemcpy(this->kernels.getData(), this->d_kernel, this->kernels.getSize() * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->bias.getData(), this->d_bias, this->bias.getSize() * sizeof(double), cudaMemcpyDeviceToHost);
+    save(file_model);
 }

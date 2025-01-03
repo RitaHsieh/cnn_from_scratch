@@ -46,8 +46,10 @@ public:
     std::vector<int> predict(Tensor<double> &x);
 
     void load(std::string path);
+    void loadCUDA(std::string path);
 
     void save(std::string path);
+    void saveCUDA(std::string path);
 
     virtual ~NetworkModel();
 

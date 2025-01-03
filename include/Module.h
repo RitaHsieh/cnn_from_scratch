@@ -65,8 +65,10 @@ public:
     }   
     
     virtual void load(FILE *file_model) = 0;
+    virtual void loadCUDA(FILE *file_model) = 0;
 
     virtual void save(FILE *file_model) = 0;
+    virtual void saveCUDA(FILE *file_model) = 0;
 
     void train();
 

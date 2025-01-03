@@ -33,6 +33,21 @@ add_executable(PP_final
     src/Conv2d.cu  # 添加 CUDA 檔案
 )
 
+add_executable(PP_final_eval
+    src/eval.cu
+    src/NetworkModel.cu 
+    src/MNISTDataLoader.cpp 
+    src/Tensor.cpp 
+    src/FullyConnected.cu
+    src/Sigmoid.cpp 
+    src/SoftmaxClassifier.cpp 
+    src/Dropout.cpp 
+    src/ReLU.cu 
+    src/MaxPool.cu
+    src/LinearLRScheduler.cpp 
+    src/Conv2d.cu  # 添加 CUDA 檔案
+)
+
 add_executable(PP_final_valid
     src/test.cu
     src/NetworkModel.cu 
@@ -49,8 +64,10 @@ add_executable(PP_final_valid
 )
 # 包含 CUDA 頭文件目錄
 target_include_directories(PP_final PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(PP_final_eval PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(PP_final_valid PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # 啟用 CUDA 可分離編譯（適合多檔案大型專案）
 set_target_properties(PP_final PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+set_target_properties(PP_final_eval PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 set_target_properties(PP_final_valid PROPERTIES CUDA_SEPARABLE_COMPILATION ON)

@@ -49,8 +49,9 @@ public:
     Tensor<double> backprop(Tensor<double> chainGradient, double learning_rate) override;
 
     void load(FILE *file_model) override;
-
+    void loadCUDA(FILE *file_model) override;
     void save(FILE *file_model) override;
+    void saveCUDA(FILE *file_model) override;
 };
 
 

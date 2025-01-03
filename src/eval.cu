@@ -45,51 +45,29 @@ int main(int argc, char **argv) {
     printf("Data directory: %s\n", argv[1]);
     string data_path = argv[1];
 
-    printf("Loading training set... ");
-    // fflush(stdout);
-    // cout << "Load image from: " << data_path + "/train-images-idx3-ubyte" << endl;
-    MNISTDataLoader train_loader(data_path + "/train-images-idx3-ubyte", data_path + "/train-labels-idx1-ubyte", BATCH_SIZE);
-    printf("Loaded.\n");
-
     int seed = 0;
-    vector<Module *> modules = {new Conv2d(1, 8, 3, 1, 0, seed), new MaxPool(2, 2), new ReLU(), new FullyConnected(1352, 30, seed), new ReLU(),
-                                new FullyConnected(30, 10, seed)};
+    vector<Module *> modules = {
+        new Conv2d(1, 8, 3, 1, 0, seed), 
+        new MaxPool(2, 2), 
+        new ReLU(), 
+        new FullyConnected(1352, 30, seed), 
+        new ReLU(),
+        new FullyConnected(30, 10, seed)
+    };
     auto lr_sched = new LinearLRScheduler(0.2, -0.000005);
     NetworkModel model = NetworkModel(modules, new SoftmaxClassifier(), lr_sched);
+    
     model.init(BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT);
+
+    // load weights
     model.loadCUDA("network_ans.txt");
-
-    get_last_error(62);
+    get_last_error(64);
    
-    int epochs = 1;
-    printf("Training for %d epoch(s).\n", epochs);
-    // Train network
-    int num_train_batches = train_loader.getNumBatches();
-    printf("num_train_batches: %d\n", num_train_batches);
-    for (int k = 0; k < epochs; ++k) {
-        printf("Epoch %d\n", k + 1);
-        for (int i = 0; i < num_train_batches; ++i) {
-            get_last_error(72);
-            pair<Tensor<double>, vector<int> > xy = train_loader.nextBatch();
-            // cout << "iter: "<< i<<" batch_size: " << xy.second.size() << endl;
-            // cout << "before trainStep" << endl;
-            double loss = model.trainStep(xy.first, xy.second);
-            // cout << "after trainStep" << endl;
-            if ((i + 1) % 10 == 0) {
-                printf("\rIteration %d/%d - Batch Loss: %.4lf", i + 1, num_train_batches, loss);
-                fflush(stdout);
-            }
-        }
-        printf("\n");
-    }
-    // Save weights
-    // model.save("network.txt");
-
-    get_last_error(85);
 
     printf("Loading testing set... ");
     // fflush(stdout);
-    MNISTDataLoader test_loader(data_path + "/t10k-images-idx3-ubyte", data_path + "/t10k-labels-idx1-ubyte", BATCH_SIZE);
+    MNISTDataLoader test_loader(data_path + "/train-images-idx3-ubyte", data_path + "/train-labels-idx1-ubyte", BATCH_SIZE);
+    // MNISTDataLoader test_loader(data_path + "/t10k-images-idx3-ubyte", data_path + "/t10k-labels-idx1-ubyte", BATCH_SIZE);
     printf("Loaded.\n");
 
     model.eval();
@@ -111,14 +89,16 @@ int main(int argc, char **argv) {
             if (predictions[j] == xy.second[j]) {
                 hits++;
             }
-            else {
-                // printf("%d::Prediction: %d, truth: %d\n", j, predictions[j], xy.second[j]);
-                // fflush(stdout);
-            }
+            // else {
+            //     printf("\r%d::Prediction: %d, truth: %d\n", j, predictions[j], xy.second[j]);
+            //     fflush(stdout);
+            // }
         }
         total += xy.second.size();
     }
     printf("\n");
+
+    get_last_error(100);
 
     end = getTimeStamp();
     printf("Total time: %.3f sec\n", end - start);

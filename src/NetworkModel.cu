@@ -191,10 +191,13 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
 }
 
 double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
+    // if(x.getSize()!=25088) {
+    //     cout << "In trainStep, " << x.getSize() << ", " << x.getData() << endl;
+    //     return 10;
+    // }
     // Forward
     Tensor<double> output = forwardCUDA(x);
-    //cout << "after forwardCUDA" << endl;
-    
+
     //Backprop
     pair<double, Tensor<double>> loss_and_cost_gradient = output_layer_->backprop(y);
     Tensor<double> chain_gradient = loss_and_cost_gradient.second;
@@ -205,7 +208,6 @@ double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
         d_update_ptr = modules_[i]->backprop(d_update_ptr, lr_scheduler_->learning_rate, false);
     }
     this->d_in = d_update_ptr;
-    //cout << "after backpropCUDA" << endl;
     ++iteration;
     lr_scheduler_->onIterationEnd(iteration);
     // Return loss
@@ -213,23 +215,15 @@ double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
 }
 
 Tensor<double> NetworkModel::forwardCUDA(Tensor<double> &x) {
-    if(x.getSize()!=25088) {
-        cout << "In forwardCUDA, " << x.getSize() << ", " << x.getData() << endl;
-    }
 
-    // cout << "d_in pointer: " << d_in << " d_out pointer: " << this->d_out << endl;
-    // cudaMemcpy(this->d_in, x.getData(), x.getSize()*sizeof(double), cudaMemcpyHostToDevice);
     CHECK(cudaMemcpy(this->d_in, x.getData(), x.getSize() * sizeof(double), cudaMemcpyHostToDevice), 206);
- // CHECK(cudaMemcpy(d_ptr, input.getData(), size* sizeof(double), cudaMemcpyHostToDevice), 131);
-    
+
     for (auto &module : modules_) {
         module->forward();
     }
+
     Tensor<double> y = Tensor<double>(this->output_num_dims, this->output_dims);
-    // cout << "output size: " << this->output_size << " output num dims: " << this->output_num_dims << " output dims 0: "<< this->output_dims[0] <<endl;
-    // cudaMemcpy(y.getData(), this->d_out, this->output_size * sizeof(double), cudaMemcpyDeviceToHost);
     CHECK(cudaMemcpy(y.getData(), this->d_out, this->output_size * sizeof(double), cudaMemcpyDeviceToHost), 211);
-    // std::cout << y.getData()[0] << std::endl;
     
     return output_layer_->predict(y);
 }
@@ -292,6 +286,16 @@ void NetworkModel::load(std::string path) {
     }
 }
 
+void NetworkModel::loadCUDA(std::string path) {
+    FILE *model_file = fopen(path.c_str(), "r");
+    if (!model_file) {
+        throw std::runtime_error("Error reading model file.");
+    }
+    for (auto &module : modules_) {
+        module->loadCUDA(model_file);
+    }
+}
+
 void NetworkModel::save(std::string path) {
     FILE *model_file = fopen(path.c_str(), "w");
     if (!model_file) {
@@ -299,6 +303,16 @@ void NetworkModel::save(std::string path) {
     }
     for (auto &module : modules_) {
         module->save(model_file);
+    }
+}
+
+void NetworkModel::saveCUDA(std::string path) {
+    FILE *model_file = fopen(path.c_str(), "w");
+    if (!model_file) {
+        throw std::runtime_error("Error reading model file.");
+    }
+    for (auto &module : modules_) {
+        module->saveCUDA(model_file);
     }
 }
 

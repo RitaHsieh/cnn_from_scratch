@@ -98,6 +98,14 @@ void ReLU::load(FILE *file_model) {
 
 }
 
+void ReLU::loadCUDA(FILE *file_model) {
+
+}
+
 void ReLU::save(FILE *file_model) {
+
+}
+
+void ReLU::saveCUDA(FILE *file_model) {
 
 }

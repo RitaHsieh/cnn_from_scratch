@@ -83,7 +83,7 @@ void MaxPool::forward() {
     //     std::cerr << "MaxPool::forward::CUDA error: " << cudaGetErrorString(err) << std::endl;
     // }
 
-    //test indexes
+    // //test indexes
     // Tensor<int> indexes_gpu = this->indexes;
     // indexes_gpu.zero();
     // cudaMemcpy(indexes_gpu.getData(), d_indexes, indexes_gpu.getSize() * sizeof(int), cudaMemcpyDeviceToHost);
@@ -92,6 +92,7 @@ void MaxPool::forward() {
     
 }
 
+// despredted
 __global__
 void MaxPool_backward(
         double* d_out,
@@ -260,6 +261,14 @@ void MaxPool::load(FILE *file_model) {
 
 }
 
+void MaxPool::loadCUDA(FILE *file_model) {
+
+}
+
 void MaxPool::save(FILE *file_model) {
+
+}
+
+void MaxPool::saveCUDA(FILE *file_model) {
 
 }
