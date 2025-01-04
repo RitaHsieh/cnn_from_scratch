@@ -10,6 +10,8 @@
 
 using namespace std;
 
+extern getTimeStamp();
+
 void CHECK(cudaError_t err, int line=0) {
     if(err != cudaSuccess) {
         cout << line << ":cuda error: " << err << endl;
@@ -59,14 +61,16 @@ bool NetworkModel::initForTest(int batch_size, int image_width, int image_height
     
     this->d_in = d_ptr;
 
+    double start, end;
+
     int i = 0;
     for(auto &layer: modules_) {
-        cout << "init layer: " << i << " with input size: " << size << endl;
+        // cout << "init layer: " << i << " with input size: " << size << endl;
         layer->setInputProps(num_dims, dims, size);
         layer->setD_in(d_ptr);
         
         if(i++ == layer_idx) {
-            
+            cout << "Forward pass, layer " << i << endl; 
             // create a fake input
             std::default_random_engine generator(seed);
             std::normal_distribution<double> distribution(0.0, 1.0);
@@ -74,7 +78,10 @@ bool NetworkModel::initForTest(int batch_size, int image_width, int image_height
             input.randn(generator, distribution, sqrt(2.0 / size));
             CHECK(cudaMemcpy(d_ptr, input.getData(), size* sizeof(double), cudaMemcpyHostToDevice), 75);
             // test cpu version
+            start = getTimeStamp();
             Tensor<double> output_cpu = layer->forward(input);
+            end = getTimeStamp();
+            printf("cpu calculate: %.2f ms\n", (end - start) * 1000);
             // test gpu version
             //      alloc for output
             num_dims = layer->getOutputNumDims();
@@ -84,7 +91,12 @@ bool NetworkModel::initForTest(int batch_size, int image_width, int image_height
             layer->setD_out(d_ptr);
             //      run CUDA ver.
             Tensor<double> output_gpu(num_dims, dims);
+            
+            start = getTimeStamp();
             layer->forward();
+            end = getTimeStamp();
+            printf("gpu calculate: %.2f ms\n", (end - start) * 1000);
+            
             CHECK(cudaMemcpy(output_gpu.getData(), d_ptr, size* sizeof(double), cudaMemcpyDeviceToHost), 88);
             // cout << "test:" << output_gpu.getData()[2] << endl;
             // compare results from cpu and gpu versions
@@ -115,14 +127,17 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
     CHECK(cudaMalloc((void **)&d_ptr, size * sizeof(double)), 115);
     this->d_in = d_ptr;
 
+    double start, end;
+
     int i = 0;
     for(auto &layer: modules_) {
-        cout << "init layer: " << i << " with input size: " << size << endl;
+        // cout << "init layer: " << i << " with input size: " << size << endl;
         layer->setInputProps(num_dims, dims, size);
         layer->setD_in(d_ptr);
 
         if(i++ == layer_idx) {
             // create a fake input
+            cout << "Backward pass, layer " << i << endl;
             std::default_random_engine generator(seed);
             std::normal_distribution<double> distribution(0.0, 1.0);
             Tensor<double> input(num_dims, dims);
@@ -146,15 +161,17 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
             CHECK(cudaMemcpy(d_ptr, inputGradient.getData(), out_size * sizeof(double), cudaMemcpyHostToDevice), 147);
             // cout << "fake inputGradient[0]:" << inputGradient.getData()[0] << endl;
             // test cpu version
-            
+
+
             Tensor<double> outputGradient_cpu = layer->backprop((Tensor<double>)inputGradient, learning_rate);
-            cout << "Finish CPU version: result[0]:" << outputGradient_cpu.getData()[1] << endl;
+            
+            // cout << "Finish CPU version: result[0]:" << outputGradient_cpu.getData()[1] << endl;
             // test gpu version
             //      run CUDA ver.
             Tensor<double> outputGradient_gpu(num_dims, dims);
             d_ptr = layer->backprop((double*)d_ptr, learning_rate, true);
             CHECK(cudaMemcpy(outputGradient_gpu.getData(), d_ptr, size * sizeof(double), cudaMemcpyDeviceToHost), 157);
-            cout << "Finish GPU version: result[0]:" << outputGradient_gpu.getData()[1] << endl;
+            // cout << "Finish GPU version: result[0]:" << outputGradient_gpu.getData()[1] << endl;
             
             // test bias & weight
             
