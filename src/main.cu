@@ -18,7 +18,7 @@ using namespace std;
 /*
  * Train a neural network on the MNIST data set and evaluate its performance
  */
-const int BATCH_SIZE = 100;
+const int BATCH_SIZE = 32;
 const int IMAGE_HEIGHT = 28;
 const int IMAGE_WIDTH = 28;
 
@@ -47,7 +47,6 @@ int main(int argc, char **argv) {
 
     printf("Loading training set... ");
     // fflush(stdout);
-    // cout << "Load image from: " << data_path + "/train-images-idx3-ubyte" << endl;
     MNISTDataLoader train_loader(data_path + "/train-images-idx3-ubyte", data_path + "/train-labels-idx1-ubyte", BATCH_SIZE);
     printf("Loaded.\n");
 
@@ -57,7 +56,7 @@ int main(int argc, char **argv) {
     auto lr_sched = new LinearLRScheduler(0.2, -0.000005);
     NetworkModel model = NetworkModel(modules, new SoftmaxClassifier(), lr_sched);
     model.init(BATCH_SIZE, IMAGE_WIDTH, IMAGE_HEIGHT);
-    model.loadCUDA("network_ans.txt");
+    // model.loadCUDA("network_ans.txt");
 
     get_last_error(62);
    
@@ -83,7 +82,7 @@ int main(int argc, char **argv) {
         printf("\n");
     }
     // Save weights
-    // model.save("network.txt");
+    model.saveCUDA("network.txt");
 
     get_last_error(85);
 
@@ -102,18 +101,14 @@ int main(int argc, char **argv) {
     printf("num_test_batches: %d\n", num_test_batches);
     for (int i = 0; i < num_test_batches; ++i) {
         if ((i + 1) % 10 == 0 || i == (num_test_batches - 1)) {
-            // printf("\rIteration %d/%d", i + 1, num_test_batches);
-            // fflush(stdout);
+            printf("\rIteration %d/%d", i + 1, num_test_batches);
+            fflush(stdout);
         }
         pair<Tensor<double>, vector<int> > xy = test_loader.nextBatch();
         vector<int> predictions = model.predict(xy.first);
         for (int j = 0; j < predictions.size(); ++j) {
             if (predictions[j] == xy.second[j]) {
                 hits++;
-            }
-            else {
-                // printf("%d::Prediction: %d, truth: %d\n", j, predictions[j], xy.second[j]);
-                // fflush(stdout);
             }
         }
         total += xy.second.size();

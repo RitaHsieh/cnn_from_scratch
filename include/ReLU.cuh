@@ -26,6 +26,7 @@ public:
     Tensor<double> product_;
 public:
     ReLU();
+    ~ReLU();
 
     void setInputProps(int num_dims, int const *dims, int size) override;
     int getOutputNumDims() override { return output_num_dims; };

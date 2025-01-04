@@ -31,6 +31,15 @@ Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int stride, i
     this->padding = padding;
 }
 
+Conv2d::~Conv2d() {
+    // std::cout<<"destruct Conv2d"<<std::endl;
+    // delete &(this->kernels);
+    // delete &(this->bias);
+    cudaFree(this->d_out);
+    cudaFree(this->d_kernel);
+    cudaFree(this->d_bias);
+}
+
 void Conv2d::setInputProps(int num_dims, int const *dims, int size) {
     // set input_dims, output_dims, input_size, output_size
     for(int i=0; i<num_dims; i++) {
@@ -48,6 +57,10 @@ void Conv2d::setInputProps(int num_dims, int const *dims, int size) {
     for(int i=0; i< num_dims; i++) {
         output_size *= output_dims[i];
     }
+    printf("Conv2d\t(%d, %d, %d, %d)\t%d\n", 
+        output_dims[0], output_dims[1], output_dims[2], output_dims[3], 
+        this->kernels.getSize()+this->bias.getSize()
+    );
 }
 
 __global__

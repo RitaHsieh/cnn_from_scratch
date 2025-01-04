@@ -18,7 +18,7 @@ using namespace std;
 /*
  * Train a neural network on the MNIST data set and evaluate its performance
  */
-const int BATCH_SIZE = 32;
+const int BATCH_SIZE = 100;
 const int IMAGE_HEIGHT = 28;
 const int IMAGE_WIDTH = 28;
 

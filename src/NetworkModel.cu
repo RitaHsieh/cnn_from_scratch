@@ -35,10 +35,10 @@ bool NetworkModel::init(int batch_size, int image_width, int image_height) {
     CHECK(cudaMalloc((void **)&d_ptr, size * sizeof(double)), 33);
     this->d_in = d_ptr;
     int i = 0;
+    cout << "init layers with batch_size: " << batch_size << endl;
+    cout << "layer\t" << "type\t" <<"Output Shape\t" << "Param#" << endl;
     for(auto &layer: modules_) {
-        cout << "init layer: " << i << " with input size: " << size << endl;
-        // cout << this->d_in << endl;
-        // cout << d_ptr << endl;
+        cout << i << "\t";
 
         layer->setInputProps(num_dims, dims, size);
         layer->setD_in(d_ptr);
@@ -135,9 +135,8 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
             std::normal_distribution<double> distribution(0.0, 1.0);
             Tensor<double> input(num_dims, dims);
             input.randn(generator, distribution, sqrt(2.0 / size));
-            // cout << "fake input[0]:" << input.getData()[0] << endl;
-            Tensor<double> output_cpu = layer->forward(input);
-            CHECK(cudaMemcpy(d_ptr, input.getData(), size* sizeof(double), cudaMemcpyHostToDevice), 131);
+            Tensor<double> output_cpu = layer->forward(input);  // to generate indexes for maxpooling
+            // CHECK(cudaMemcpy(d_ptr, input.getData(), size* sizeof(double), cudaMemcpyHostToDevice), 131);
             
             // alloc for output
             int out_num_dims = layer->getOutputNumDims();
@@ -151,8 +150,10 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
             // std::normal_distribution<double> distribution(0.0, 1.0);
             Tensor<double> inputGradient(out_num_dims, out_dims);
             inputGradient.randn(generator1, distribution, sqrt(2.0 / out_size));
+            inputGradient.set(0, 10);
             CHECK(cudaMemcpy(d_ptr, inputGradient.getData(), out_size * sizeof(double), cudaMemcpyHostToDevice), 147);
-            // cout << "fake inputGradient[0]:" << inputGradient.getData()[0] << endl;
+            cout << "fake inputGradient[0]:" << inputGradient.getData()[0] << endl;
+            
             // test cpu version
             Tensor<double> outputGradient_cpu = layer->backprop((Tensor<double>)inputGradient, learning_rate);
             // cout << "Finish CPU version: result[0]:" << outputGradient_cpu.getData()[1] << endl;
@@ -195,6 +196,7 @@ double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
     //     cout << "In trainStep, " << x.getSize() << ", " << x.getData() << endl;
     //     return 10;
     // }
+
     // Forward
     Tensor<double> output = forwardCUDA(x);
 
@@ -204,12 +206,12 @@ double NetworkModel::trainStep(Tensor<double> &x, vector<int>& y) {
     CHECK(cudaMemcpy(this->d_out, chain_gradient.getData(), chain_gradient.getSize() * sizeof(double), cudaMemcpyHostToDevice),200);
     double* d_update_ptr = this->d_out;
     for (int i = (int) modules_.size() - 1; i >= 0; --i) {
-        // cout << "it:" << iteration <<", backprop in no. " << i << " layer" << endl;
         d_update_ptr = modules_[i]->backprop(d_update_ptr, lr_scheduler_->learning_rate, false);
     }
     this->d_in = d_update_ptr;
     ++iteration;
     lr_scheduler_->onIterationEnd(iteration);
+
     // Return loss
     return loss_and_cost_gradient.first;
 }
@@ -317,6 +319,7 @@ void NetworkModel::saveCUDA(std::string path) {
 }
 
 NetworkModel::~NetworkModel() {
+    cudaFree(this->d_in);
     for (auto &module : modules_) {
         delete module;
     }

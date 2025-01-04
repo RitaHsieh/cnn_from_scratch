@@ -9,6 +9,10 @@ MaxPool::MaxPool(int size, int stride) {
     stride_ = stride;
 }
 
+MaxPool::~MaxPool() {
+    cudaFree(this->d_out);
+}
+
 void MaxPool::setInputProps(int num_dims, int const *dims, int size) {
     // set input_dims, output_dims, input_size, output_size
     for(int i=0; i<num_dims; i++) {
@@ -28,6 +32,11 @@ void MaxPool::setInputProps(int num_dims, int const *dims, int size) {
     }
 
     cudaMalloc((void **)&d_indexes, output_size * sizeof(int));
+
+    printf("MaxPool\t(%d, %d, %d, %d)\t%d\n", 
+        output_dims[0], output_dims[1], output_dims[2], output_dims[3], 
+        0
+    );
 }
 
 __global__

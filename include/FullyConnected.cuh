@@ -33,6 +33,7 @@ private:
 
 public:
     FullyConnected(int input_size, int output_size, int seed = 0);
+    ~FullyConnected();
 
     void setInputProps(int num_dims, int const *dims, int size) override;
     int getOutputNumDims() override { return output_num_dims; };

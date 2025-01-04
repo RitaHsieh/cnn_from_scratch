@@ -27,6 +27,7 @@ public:
     Tensor<double> bias;
 
     Conv2d(int in_channels, int out_channels, int kernel_size, int stride, int padding, int seed = 0);
+    ~Conv2d();
 
     void setInputProps(int num_dims, int const *dims, int size) override;
     int getOutputNumDims() override { return output_num_dims; };

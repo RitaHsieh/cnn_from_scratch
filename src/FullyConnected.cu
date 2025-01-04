@@ -121,6 +121,12 @@ FullyConnected::FullyConnected(int input_size, int output_size, int seed) {
     }
 }
 
+FullyConnected::~FullyConnected() {
+    cudaFree(this->d_out);
+    cudaFree(this->d_weights);
+    cudaFree(this->d_bias);
+}
+
 void FullyConnected::setInputProps(int num_dims, int const *dims, int size) {
     // set input_dims
     input_dims[0] = dims[0];
@@ -141,6 +147,11 @@ void FullyConnected::setInputProps(int num_dims, int const *dims, int size) {
 
     // calculate ouptut_size
     output_size = output_dims[0] * output_dims[1];
+
+    printf("FC\t(%d, %d)\t%d\n", 
+        output_dims[0], output_dims[1],
+        this->weights.getSize()+this->bias.getSize()
+    );
 }
 
 void FullyConnected::forward() {

@@ -29,12 +29,16 @@ __global__ void backprop_cuda(double* d_in, double* d_out, int input_dims_1) {
     int bx = blockIdx.x;    // no. of batch
 
     for(int i = tx; i<input_dims_1; i+=32) {
-        d_in[bx * input_dims_1 + i] = (d_out[bx * input_dims_1 + i]>0) ? d_out[bx * input_dims_1 + i] : 0;
+        d_in[bx * input_dims_1 + i] = (d_in[bx * input_dims_1 + i]>0) ? d_out[bx * input_dims_1 + i] : 0;
     }
 }
 
 
 ReLU::ReLU() = default;
+
+ReLU::~ReLU() {
+    cudaFree(this->d_out);
+}
 
 void ReLU::setInputProps(int num_dims, int const *dims, int size) {
     assert(num_dims > 0 && num_dims <= 4);
@@ -54,6 +58,11 @@ void ReLU::setInputProps(int num_dims, int const *dims, int size) {
     //copy(input_dims, input_dims+output_num_dims, output_dims);
     // calculate ouptut_size
     output_size = input_size;
+
+    printf("ReLU\t(%d, %d)\t%d\n", 
+        output_dims[0], output_dims[1],
+        0
+    );
 }
 
 void ReLU::forward() {
