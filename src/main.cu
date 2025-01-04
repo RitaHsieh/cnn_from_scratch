@@ -47,8 +47,12 @@ int main(int argc, char **argv) {
 
     printf("Loading training set... ");
     // fflush(stdout);
+    start = getTimeStamp();
+    // cout << "Load image from: " << data_path + "/train-images-idx3-ubyte" << endl;
     MNISTDataLoader train_loader(data_path + "/train-images-idx3-ubyte", data_path + "/train-labels-idx1-ubyte", BATCH_SIZE);
+    end = getTimeStamp();
     printf("Loaded.\n");
+    printf("Data Load time: %.5f ms\n", (end - start)*1000);
 
     int seed = 0;
     vector<Module *> modules = {new Conv2d(1, 8, 3, 1, 0, seed), new MaxPool(2, 2), new ReLU(), new FullyConnected(1352, 30, seed), new ReLU(),
@@ -62,6 +66,7 @@ int main(int argc, char **argv) {
    
     int epochs = 1;
     printf("Training for %d epoch(s).\n", epochs);
+    start = getTimeStamp();
     // Train network
     int num_train_batches = train_loader.getNumBatches();
     printf("num_train_batches: %d\n", num_train_batches);
@@ -81,6 +86,8 @@ int main(int argc, char **argv) {
         }
         printf("\n");
     }
+    end = getTimeStamp();
+    printf("Train time: %.5f ms\n", (end - start)*1000);
     // Save weights
     model.saveCUDA("network.txt");
 
@@ -97,6 +104,7 @@ int main(int argc, char **argv) {
     int hits = 0;
     int total = 0;
     printf("Testing...\n");
+    start = getTimeStamp();
     int num_test_batches = test_loader.getNumBatches();
     printf("num_test_batches: %d\n", num_test_batches);
     for (int i = 0; i < num_test_batches; ++i) {
@@ -113,10 +121,10 @@ int main(int argc, char **argv) {
         }
         total += xy.second.size();
     }
+    end = getTimeStamp();
     printf("\n");
 
-    end = getTimeStamp();
-    printf("Total time: %.3f sec\n", end - start);
+    printf("Testing time: %.5f ms\n", (end - start)*1000);
 
     printf("Accuracy: %.2f%% (%d/%d)\n", ((double) hits * 100) / total, hits, total);
 
