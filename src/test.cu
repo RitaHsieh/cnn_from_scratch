@@ -45,9 +45,9 @@ int main(int argc, char **argv) {
     if (err1 != cudaSuccess) {
         std::cerr << "CUDA error1: " << cudaGetErrorString(err1) << std::endl;
     }
-    else {
-        std::cout << "module init successfully" << std::endl;
-    }
+    // else {
+    //     std::cout << "module init successfully" << std::endl;
+    // }
     
     int num_modules = modules.size();
 

@@ -41,8 +41,8 @@ bool NetworkModel::init(int batch_size, int image_width, int image_height) {
     cout << "layer\t" << "type\t" <<"Output Shape\t\t" << "Param#" << endl;
     for(auto &layer: modules_) {
         cout << i << "\t";
-
         layer->setInputProps(num_dims, dims, size);
+        layer->printInfo();
         layer->setD_in(d_ptr);
         num_dims = layer->getOutputNumDims();
         dims = layer->getOutputDims();
@@ -55,7 +55,7 @@ bool NetworkModel::init(int batch_size, int image_width, int image_height) {
     this->output_dims = dims;
     this->output_size = size;
     this->d_out = d_ptr;
-
+    cout << "----------------------------------" << endl;
     return true;
 }
 
@@ -78,7 +78,11 @@ bool NetworkModel::initForTest(int batch_size, int image_width, int image_height
         layer->setD_in(d_ptr);
         
         if(i++ == layer_idx) {
-            cout << "------ Forward pass, layer " << i << "------" << endl; 
+            cout << "------ Forward pass, layer " << i << "------" << endl;
+            cout << "layer\t" << "type\t" <<"Output Shape\t\t" << "Param#" << endl;
+            cout << i-1 << "\t";
+            layer->printInfo(); 
+            cout << "----------------------------------" << endl;
             // create a fake input
             std::default_random_engine generator(seed);
             std::normal_distribution<double> distribution(0.0, 1.0);
@@ -147,6 +151,10 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
         if(i++ == layer_idx) {
             // create a fake input
             cout << "------Backward pass, layer " << i << "------" << endl;
+            cout << "layer\t" << "type\t" <<"Output Shape\t\t" << "Param#" << endl;
+            cout << i-1 << "\t";
+            layer->printInfo();
+            cout << "----------------------------------" << endl;
             std::default_random_engine generator(seed);
             std::normal_distribution<double> distribution(0.0, 1.0);
             Tensor<double> input(num_dims, dims);

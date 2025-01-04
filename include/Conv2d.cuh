@@ -46,6 +46,9 @@ public:
     
     double * backprop(double* d_ptr, double learning_rate, bool test) override;
 
+    
+    void printInfo() override;
+
     void load(FILE *file_model) override;
     void loadCUDA(FILE *file_model) override;
     void save(FILE *file_model) override;

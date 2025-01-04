@@ -149,7 +149,9 @@ void FullyConnected::setInputProps(int num_dims, int const *dims, int size) {
 
     // calculate ouptut_size
     output_size = output_dims[0] * output_dims[1];
+}
 
+void FullyConnected::printInfo() {
     printf("FC\t(%d, %d)\t\t%d\n", 
         output_dims[0], output_dims[1],
         this->weights.getSize()+this->bias.getSize()
@@ -228,9 +230,9 @@ double* FullyConnected::backprop(double* d_ptr, double learning_rate, bool test)
         if (err != cudaSuccess) {
             std::cerr << "FC::backprop::CUDA error: " << cudaGetErrorString(err) << std::endl;
         }
-        else {
-            std::cout << "finish wait for cuda stream" << std::endl;
-        }
+        // else {
+        //     std::cout << "finish wait for cuda stream" << std::endl;
+        // }
     }
 
     cudaStreamDestroy(streams[0]);

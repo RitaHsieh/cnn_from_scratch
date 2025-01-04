@@ -33,7 +33,9 @@ void MaxPool::setInputProps(int num_dims, int const *dims, int size) {
     }
 
     cudaMalloc((void **)&d_indexes, output_size * sizeof(int));
+}
 
+void MaxPool::printInfo() {
     printf("MaxPool\t(%d, %d, %d, %d)\t%d\n", 
         output_dims[0], output_dims[1], output_dims[2], output_dims[3], 
         0

@@ -13,6 +13,7 @@
 class Module {
 public:
     Tensor<double> input_;
+    // bool printInfo = false;
 protected:
     bool isEval = false;
 public:
@@ -64,6 +65,9 @@ public:
         throw std::runtime_error("This method is not supported for this type.");
     }   
     
+    
+    virtual void printInfo() = 0;
+
     virtual void load(FILE *file_model) = 0;
     virtual void loadCUDA(FILE *file_model) = 0;
 

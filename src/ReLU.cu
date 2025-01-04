@@ -60,7 +60,9 @@ void ReLU::setInputProps(int num_dims, int const *dims, int size) {
     //copy(input_dims, input_dims+output_num_dims, output_dims);
     // calculate ouptut_size
     output_size = input_size;
+}
 
+void ReLU::printInfo() {
     printf("ReLU\t(%d, %d)\t\t%d\n", 
         output_dims[0], output_dims[1],
         0
