@@ -30,7 +30,7 @@ cmake --build build --target PP_final --clean-first
 ```
 Run:
 ```sh
-srun -N1 -n1 --gres=gpu:1 ./build/PP_final
+srun -N1 -n1 --gres=gpu:1 ./build/PP_final data
 ./build/PP_final data
 ```
 Only run test model

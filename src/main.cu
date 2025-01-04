@@ -1,5 +1,6 @@
 #include <iostream>
 #include <sys/time.h>
+#include<unistd.h>
 #include "../include/NetworkModel.cuh"
 #include "../include/Module.h"
 #include "../include/FullyConnected.cuh"
@@ -89,7 +90,7 @@ int main(int argc, char **argv) {
     end = getTimeStamp();
     printf("Train time: %.5f ms\n", (end - start)*1000);
     // Save weights
-    model.saveCUDA("network.txt");
+    // model.saveCUDA("network.txt");
 
     get_last_error(85);
 
@@ -124,9 +125,9 @@ int main(int argc, char **argv) {
     end = getTimeStamp();
     printf("\n");
 
-    printf("Testing time: %.5f ms\n", (end - start)*1000);
-
     printf("Accuracy: %.2f%% (%d/%d)\n", ((double) hits * 100) / total, hits, total);
+
+    printf("Testing time: %.5f ms\n", (end - start)*1000);
 
     // cout << start - end << endl;
     return 0;

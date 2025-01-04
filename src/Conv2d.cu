@@ -1,5 +1,7 @@
 #include "../include/Conv2d.cuh"
 
+extern double getTimeStamp();
+
 Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int stride, int padding, int seed) {
     std::default_random_engine generator(seed);
     std::normal_distribution<double> distribution(0.0, 1.0);
@@ -314,7 +316,10 @@ __global__ void Conv2d_kernel_gradient_gpu(
 
 
 double * Conv2d::backprop(double* d_chain_gradient, double learning_rate, bool test) {
-    
+    double start, end;
+    if (test) {
+        start = getTimeStamp();
+    } 
     d_out = d_chain_gradient;
     double * d_input_temp, * d_kernel_temp;
 
@@ -358,10 +363,7 @@ double * Conv2d::backprop(double* d_chain_gradient, double learning_rate, bool t
         cudaError_t err = cudaGetLastError();
         if (err != cudaSuccess) {
             std::cerr << "Conv2d::backprop::CUDA error: " << cudaGetErrorString(err) << std::endl;
-        }
-        else {
-            std::cout << "Conv2d::backprop::CUDA success!" << std::endl;
-        }
+        }  
     }
 
     cudaStreamSynchronize(stream[0]);
@@ -377,6 +379,8 @@ double * Conv2d::backprop(double* d_chain_gradient, double learning_rate, bool t
     d_kernel = d_kernel_temp;
 
     if(test) {
+        end = getTimeStamp();
+        std::cout << "gpu compute: " << (end - start) * 1000 << "ms" << std::endl;
         Tensor<double> kernels_gpu = this->kernels;
         kernels_gpu.zero();
         cudaMemcpy(kernels_gpu.getData(), d_kernel, kernels_gpu.getSize() * sizeof(double), cudaMemcpyDeviceToHost);

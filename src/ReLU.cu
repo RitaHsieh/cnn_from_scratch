@@ -4,6 +4,8 @@
 
 #include "../include/ReLU.cuh"
 
+extern double getTimeStamp();
+
 __global__ void forward_cuda(double* d_in, double* d_out, int input_dims_1) {
     
     // blockDim = 128
@@ -59,7 +61,7 @@ void ReLU::setInputProps(int num_dims, int const *dims, int size) {
     // calculate ouptut_size
     output_size = input_size;
 
-    printf("ReLU\t(%d, %d)\t%d\n", 
+    printf("ReLU\t(%d, %d)\t\t%d\n", 
         output_dims[0], output_dims[1],
         0
     );
@@ -93,8 +95,18 @@ Tensor<double> &ReLU::forward(Tensor<double> &input) {
 }
 
 double* ReLU::backprop(double* d_ptr, double learning_rate, bool test) {
+    double start, end;
+    if(test) {
+        start = getTimeStamp();
+    }
+
     this->d_out = d_ptr;
     backprop_cuda<<<this->input_dims[0], 32>>>(this->d_in, this->d_out, this->input_dims[1]);
+
+    if(test) {
+        end = getTimeStamp();
+        std::cout << "gpu compute: " << (end - start) * 1000 << "ms" << std::endl;
+    }
     return this->d_in;
 }
 

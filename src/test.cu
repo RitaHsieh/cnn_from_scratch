@@ -18,7 +18,7 @@ using namespace std;
 /*
  * Train a neural network on the MNIST data set and evaluate its performance
  */
-const int BATCH_SIZE = 100;
+const int BATCH_SIZE = 32;
 const int IMAGE_HEIGHT = 28;
 const int IMAGE_WIDTH = 28;
 
@@ -29,8 +29,8 @@ double getTimeStamp() {
 }
 
 int main(int argc, char **argv) {
-    double start, end;
-    start = getTimeStamp();
+    // double start, end;
+    // start = getTimeStamp();
 
     if (argc < 3) {
         throw runtime_error("Please provide the data directory path as an argument");
@@ -71,9 +71,10 @@ int main(int argc, char **argv) {
     }
     
     cout << "result: " << result << endl;
-
-    end = getTimeStamp();
-    printf("Total time: %.3f sec\n", end - start);
+    // cout << "------Backward pass, layer ------" << endl;
+    cout << "----------------------------------" << endl;
+    // end = getTimeStamp();
+    // printf("Total time: %.3f sec\n", end - start);
 
     // cout << start - end << endl;
     return 0;

@@ -6,6 +6,8 @@
 #include "../include/FullyConnected.cuh"
 #include "../include/Tensor.h"
 
+extern double getTimeStamp();
+
 __global__ void forward_cuda(
     double* d_in, double* d_out, double* d_weights, double* d_bias, 
     int input_dim, int d, int output_dim
@@ -148,7 +150,7 @@ void FullyConnected::setInputProps(int num_dims, int const *dims, int size) {
     // calculate ouptut_size
     output_size = output_dims[0] * output_dims[1];
 
-    printf("FC\t(%d, %d)\t%d\n", 
+    printf("FC\t(%d, %d)\t\t%d\n", 
         output_dims[0], output_dims[1],
         this->weights.getSize()+this->bias.getSize()
     );
@@ -187,6 +189,10 @@ Tensor<double> &FullyConnected::forward(Tensor<double> &input) {
 }
 
 double* FullyConnected::backprop(double* d_ptr, double learning_rate, bool test) {
+    double start, end;
+    if (test) {
+        start = getTimeStamp();
+    }
     this->d_out = d_ptr;
     double *d_in_new, *d_weights_new;
     cudaMalloc((void**)&d_in_new, this->input_size * sizeof(double));
@@ -237,6 +243,9 @@ double* FullyConnected::backprop(double* d_ptr, double learning_rate, bool test)
     this->d_weights = d_weights_new;
 
     if(test) {
+        end = getTimeStamp();
+        std::cout << "gpu compute: " << (end - start) * 1000 << "ms" << std::endl;
+
         Tensor<double> weights_gpu = this->weights;
         weights_gpu.zero();
         cudaMemcpy(weights_gpu.getData(), d_weights, weights_gpu.getSize() * sizeof(double), cudaMemcpyDeviceToHost);

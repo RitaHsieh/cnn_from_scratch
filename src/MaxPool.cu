@@ -4,6 +4,7 @@
 
 #include "../include/MaxPool.cuh"
 
+extern double getTimeStamp();
 MaxPool::MaxPool(int size, int stride) {
     size_ = size;
     stride_ = stride;
@@ -172,6 +173,11 @@ __global__  void backprop_cuda(
 }
 
 double * MaxPool::backprop(double* d_chain_gradient, double learning_rate, bool test) {
+    double start, end;
+    if(test) {
+        start = getTimeStamp();
+    }
+
     this->d_out = d_chain_gradient;
     if(test) {
         cudaMemcpy(d_indexes, this->indexes.getData(), this->indexes.getSize() * sizeof(int), cudaMemcpyHostToDevice);
@@ -199,6 +205,8 @@ double * MaxPool::backprop(double* d_chain_gradient, double learning_rate, bool 
     );
     
     if(test) {
+        end = getTimeStamp();
+        std::cout << "gpu compute: " << (end - start) * 1000 << "ms" << std::endl;
         cudaError_t err = cudaGetLastError();
         if (err != cudaSuccess) {
             std::cerr << "MaxPool::backprop::CUDA error: " << cudaGetErrorString(err) << std::endl;

@@ -10,7 +10,7 @@
 
 using namespace std;
 
-extern getTimeStamp();
+extern double getTimeStamp();
 
 void CHECK(cudaError_t err, int line=0) {
     if(err != cudaSuccess) {
@@ -38,7 +38,7 @@ bool NetworkModel::init(int batch_size, int image_width, int image_height) {
     this->d_in = d_ptr;
     int i = 0;
     cout << "init layers with batch_size: " << batch_size << endl;
-    cout << "layer\t" << "type\t" <<"Output Shape\t" << "Param#" << endl;
+    cout << "layer\t" << "type\t" <<"Output Shape\t\t" << "Param#" << endl;
     for(auto &layer: modules_) {
         cout << i << "\t";
 
@@ -78,7 +78,7 @@ bool NetworkModel::initForTest(int batch_size, int image_width, int image_height
         layer->setD_in(d_ptr);
         
         if(i++ == layer_idx) {
-            cout << "Forward pass, layer " << i << endl; 
+            cout << "------ Forward pass, layer " << i << "------" << endl; 
             // create a fake input
             std::default_random_engine generator(seed);
             std::normal_distribution<double> distribution(0.0, 1.0);
@@ -89,7 +89,7 @@ bool NetworkModel::initForTest(int batch_size, int image_width, int image_height
             start = getTimeStamp();
             Tensor<double> output_cpu = layer->forward(input);
             end = getTimeStamp();
-            printf("cpu calculate: %.2f ms\n", (end - start) * 1000);
+            printf("cpu compute: %.2f ms\n", (end - start) * 1000);
             // test gpu version
             //      alloc for output
             num_dims = layer->getOutputNumDims();
@@ -103,7 +103,7 @@ bool NetworkModel::initForTest(int batch_size, int image_width, int image_height
             start = getTimeStamp();
             layer->forward();
             end = getTimeStamp();
-            printf("gpu calculate: %.2f ms\n", (end - start) * 1000);
+            printf("gpu compute: %.2f ms\n", (end - start) * 1000);
             
             CHECK(cudaMemcpy(output_gpu.getData(), d_ptr, size* sizeof(double), cudaMemcpyDeviceToHost), 88);
             // cout << "test:" << output_gpu.getData()[2] << endl;
@@ -122,6 +122,7 @@ bool NetworkModel::initForTest(int batch_size, int image_width, int image_height
     this->output_size = size;
     this->d_out = d_ptr;
 
+    printf("\n");
     return true;
 }
 
@@ -145,7 +146,7 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
 
         if(i++ == layer_idx) {
             // create a fake input
-            cout << "Backward pass, layer " << i << endl;
+            cout << "------Backward pass, layer " << i << "------" << endl;
             std::default_random_engine generator(seed);
             std::normal_distribution<double> distribution(0.0, 1.0);
             Tensor<double> input(num_dims, dims);
@@ -167,12 +168,13 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
             inputGradient.randn(generator1, distribution, sqrt(2.0 / out_size));
             inputGradient.set(0, 10);
             CHECK(cudaMemcpy(d_ptr, inputGradient.getData(), out_size * sizeof(double), cudaMemcpyHostToDevice), 147);
-            cout << "fake inputGradient[0]:" << inputGradient.getData()[0] << endl;
+            // cout << "fake inputGradient[0]:" << inputGradient.getData()[0] << endl;
             
             // test cpu version
-            
+            start = getTimeStamp();
             Tensor<double> outputGradient_cpu = layer->backprop((Tensor<double>)inputGradient, learning_rate);
-            
+            end = getTimeStamp();
+            printf("cpu compute: %.2f ms\n", (end - start)*1000);
             // // cout << "Finish CPU version: result[0]:" << outputGradient_cpu.getData()[1] << endl;
             
             // test gpu version
@@ -205,6 +207,7 @@ bool NetworkModel::initForTest_backprop(int batch_size, int image_width, int ima
     this->output_size = size;
     this->d_out = d_ptr;
 
+    printf("\n");
     return true;
 }
 
